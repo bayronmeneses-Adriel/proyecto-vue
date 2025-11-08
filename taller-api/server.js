@@ -32,16 +32,17 @@ app.get('/api/coches', async (req, res) => {
   }
 })
 
-// B. CREACIÓN (POST): Crear un nuevo coche
+// B. CREACIÓN (POST): Crear un nuevo coche con cliente_id
 app.post('/api/coches', async (req, res) => {
-  const { matricula, modelo, problema_descripcion, estado, mecanicoAsignado } = req.body
+  const { matricula, modelo, problema_descripcion, cliente_id, estado, mecanicoAsignado } = req.body // <-- cliente_id AÑADIDO
   try {
     const [result] = await db.execute(
-      'INSERT INTO coches (matricula, modelo, problema_descripcion, estado, mecanicoAsignado) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO coches (matricula, modelo, problema_descripcion, cliente_id, estado, mecanicoAsignado) VALUES (?, ?, ?, ?, ?, ?)', // <-- SQL MODIFICADO
       [
         matricula,
         modelo,
-        problema_descripcion || 'Sin descripción inicial',
+        problema_descripcion,
+        cliente_id,
         estado || 'Pendiente',
         mecanicoAsignado || null,
       ],
@@ -51,7 +52,8 @@ app.post('/api/coches', async (req, res) => {
       id: result.insertId,
       matricula,
       modelo,
-      problema_descripcion: problema_descripcion || 'Sin descripción inicial',
+      problema_descripcion,
+      cliente_id, // <-- Retornar ID
       estado: estado || 'Pendiente',
       mecanicoAsignado: mecanicoAsignado || null,
     })
@@ -209,6 +211,123 @@ app.delete('/api/mecanicos/:id', async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor al eliminar el mecánico.' })
   }
 })
+
+// K. LECTURA (GET): Obtener todos los clientes
+app.get('/api/clientes', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM clientes ORDER BY nombre ASC')
+    res.json(rows)
+  } catch (error) {
+    console.error('Error al obtener clientes:', error)
+    res.status(500).json({ message: 'Error en el servidor al consultar clientes.' })
+  }
+})
+
+// L. CREACIÓN (POST): Crear un nuevo cliente
+app.post('/api/clientes', async (req, res) => {
+  const { nombre, telefono, email, direccion } = req.body
+  try {
+    const [result] = await db.execute(
+      'INSERT INTO clientes (nombre, telefono, email, direccion) VALUES (?, ?, ?, ?)',
+      [nombre, telefono, email, direccion],
+    )
+    res.status(201).json({ id: result.insertId, nombre, telefono, email, direccion })
+  } catch (error) {
+    console.error('Error al insertar cliente:', error)
+    res.status(500).json({ message: 'Error al crear el cliente.' })
+  }
+})
+
+// M. ELIMINACIÓN (DELETE): Eliminar un cliente por ID
+app.delete('/api/clientes/:id', async (req, res) => {
+  const { id } = req.params
+
+  try {
+    const [result] = await db.execute('DELETE FROM clientes WHERE id = ?', [id])
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Cliente no encontrado.' })
+    }
+    res.status(200).json({ message: 'Cliente eliminado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error)
+    res.status(500).json({ message: 'Error al eliminar el cliente.' })
+  }
+})
+
+// N. LECTURA (GET): Obtener lista simple de todos los clientes (para el SELECT)
+app.get('/api/clientes/lista', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT id, nombre FROM clientes ORDER BY nombre ASC')
+    res.json(rows)
+  } catch (error) {
+    console.error('Error al obtener lista de clientes:', error)
+    res.status(500).json({ message: 'Error en el servidor al consultar lista de clientes.' })
+  }
+})
+
+// O. LECTURA (GET): Obtener todos los repuestos
+app.get('/api/repuestos', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM repuestos ORDER BY nombre ASC')
+    res.json(rows)
+  } catch (error) {
+    console.error('Error al obtener repuestos:', error)
+    res.status(500).json({ message: 'Error en el servidor al consultar repuestos.' })
+  }
+})
+
+// P. CREACIÓN (POST): Crear un nuevo repuesto
+app.post('/api/repuestos', async (req, res) => {
+  const { nombre, codigo, fabricante, stock, precio } = req.body
+  try {
+    const [result] = await db.execute(
+      'INSERT INTO repuestos (nombre, codigo, fabricante, stock, precio) VALUES (?, ?, ?, ?, ?)',
+      [nombre, codigo, fabricante, stock, precio],
+    )
+    res.status(201).json({ id: result.insertId, nombre, codigo, fabricante, stock, precio })
+  } catch (error) {
+    // Si el código ya existe, MySQL devuelve un error
+    console.error('Error al insertar repuesto:', error)
+    res.status(409).json({ message: 'El código de repuesto ya existe o hay un error de datos.' })
+  }
+})
+// Q. ELIMINACIÓN (DELETE): Eliminar un repuesto por ID
+app.delete('/api/repuestos/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    const [result] = await db.execute('DELETE FROM repuestos WHERE id = ?', [id])
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Repuesto no encontrado.' })
+    }
+    res.status(200).json({ message: 'Repuesto eliminado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al eliminar repuesto:', error)
+    res.status(500).json({ message: 'Error al eliminar el repuesto.' })
+  }
+})
+
+// R. ACTUALIZACIÓN (PUT): Actualizar un repuesto por ID
+app.put('/api/repuestos/:id', async (req, res) => {
+  const { id } = req.params
+  const { nombre, codigo, fabricante, stock, precio } = req.body
+
+  try {
+    const [result] = await db.execute(
+      'UPDATE repuestos SET nombre = ?, codigo = ?, fabricante = ?, stock = ?, precio = ? WHERE id = ?',
+      [nombre, codigo, fabricante, stock, precio, id],
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Repuesto no encontrado.' })
+    }
+    res.status(200).json({ message: 'Repuesto actualizado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al actualizar repuesto:', error)
+    res.status(500).json({ message: 'Error en el servidor al actualizar el repuesto.' })
+  }
+})
+// Nota: La actualización (PUT) se implementaría si necesita modificar precio o stock.
 // --- 3. INICIAR SERVIDOR ---
 app.listen(PORT, () => {
   console.log(`Backend API REAL corriendo en http://localhost:${PORT}`)
