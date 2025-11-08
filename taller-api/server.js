@@ -34,23 +34,29 @@ app.get('/api/coches', async (req, res) => {
 
 // B. CREACIÓN (POST): Crear un nuevo coche
 app.post('/api/coches', async (req, res) => {
-  const { matricula, modelo, estado, mecanicoAsignado } = req.body
+  const { matricula, modelo, problema_descripcion, estado, mecanicoAsignado } = req.body
   try {
     const [result] = await db.execute(
-      'INSERT INTO coches (matricula, modelo, estado, mecanicoAsignado) VALUES (?, ?, ?, ?)',
-      [matricula, modelo, estado || 'Pendiente', mecanicoAsignado || null],
+      'INSERT INTO coches (matricula, modelo, problema_descripcion, estado, mecanicoAsignado) VALUES (?, ?, ?, ?, ?)',
+      [
+        matricula,
+        modelo,
+        problema_descripcion || 'Sin descripción inicial',
+        estado || 'Pendiente',
+        mecanicoAsignado || null,
+      ],
     )
-    // Retorna el nuevo objeto incluyendo el ID generado por MySQL
+    // Retorna el nuevo objeto
     res.status(201).json({
       id: result.insertId,
       matricula,
       modelo,
+      problema_descripcion: problema_descripcion || 'Sin descripción inicial',
       estado: estado || 'Pendiente',
       mecanicoAsignado: mecanicoAsignado || null,
     })
   } catch (error) {
     console.error('Error al insertar coche:', error)
-    // Código 409: Conflicto (probable matrícula duplicada)
     res.status(409).json({ message: 'La matrícula ya existe o hay un error de datos.' })
   }
 })
@@ -58,22 +64,30 @@ app.post('/api/coches', async (req, res) => {
 // C. MÉTRICAS (GET): Dashboard
 app.get('/api/metricas', async (req, res) => {
   try {
+    // 1. Obtener vehículos/servicios en reparación
     const [cochesEnTaller] = await db.query(
       "SELECT COUNT(*) AS total FROM coches WHERE estado NOT IN ('Listo para entrega')",
     )
 
-    // Datos de mecánicos y servicios simulados para el Dashboard
+    // 2. Obtener mecánicos disponibles REALES
+    const [mecanicosDisp] = await db.query(
+      'SELECT COUNT(*) AS total FROM mecanicos WHERE disponible = TRUE',
+    )
+
+    // Obtenemos el valor real del conteo
+    const vehiculosActivos = cochesEnTaller[0].total
+
     res.json({
-      vehiculosEnTaller: cochesEnTaller[0].total,
-      mecanicosDisponibles: 2, // Dato simulado
-      serviciosPendientes: 7, // Dato simulado
+      vehiculosEnTaller: vehiculosActivos,
+      mecanicosDisponibles: mecanicosDisp[0].total,
+      // 3. ASIGNAMOS EL VALOR REAL DE VEHÍCULOS ACTIVOS A 'serviciosPendientes'
+      serviciosPendientes: vehiculosActivos,
     })
   } catch (error) {
     console.error('Error al obtener métricas:', error)
     res.status(500).json({ message: 'Error al consultar métricas.' })
   }
 })
-
 // D. LECTURA (GET): Obtener todos los mecánicos
 app.get('/api/mecanicos', async (req, res) => {
   try {
@@ -126,6 +140,75 @@ app.put('/api/coches/:id', async (req, res) => {
   }
 })
 
+// G. LECTURA (GET): Obtener solo mecánicos DISPONIBLES
+app.get('/api/mecanicos/disponibles', async (req, res) => {
+  try {
+    // Asumiendo que el campo 'disponible' es TRUE/FALSE en MySQL
+    const [rows] = await db.query(
+      'SELECT id, nombre FROM mecanicos WHERE disponible = TRUE ORDER BY nombre ASC',
+    )
+    res.json(rows)
+  } catch (error) {
+    console.error('Error al obtener mecánicos disponibles:', error)
+    res.status(500).json({ message: 'Error en el servidor al consultar mecánicos disponibles.' })
+  }
+})
+
+// H. ELIMINACIÓN (DELETE): Eliminar un coche por ID
+app.delete('/api/coches/:id', async (req, res) => {
+  const { id } = req.params // Captura el ID desde la URL
+
+  try {
+    const [result] = await db.execute('DELETE FROM coches WHERE id = ?', [id])
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Coche no encontrado.' })
+    }
+
+    res.status(200).json({ message: 'Coche eliminado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al eliminar coche:', error)
+    res.status(500).json({ message: 'Error en el servidor al eliminar el coche.' })
+  }
+})
+
+// I. ACTUALIZACIÓN (PUT): Actualizar datos de un mecánico
+app.put('/api/mecanicos/:id', async (req, res) => {
+  const { id } = req.params
+  const { nombre, especialidad, disponible } = req.body
+
+  try {
+    const [result] = await db.execute(
+      'UPDATE mecanicos SET nombre = ?, especialidad = ?, disponible = ? WHERE id = ?',
+      [nombre, especialidad, disponible, id],
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Mecánico no encontrado.' })
+    }
+    res.status(200).json({ message: 'Mecánico actualizado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al actualizar mecánico:', error)
+    res.status(500).json({ message: 'Error en el servidor al actualizar el mecánico.' })
+  }
+})
+
+// J. ELIMINACIÓN (DELETE): Eliminar un mecánico por ID
+app.delete('/api/mecanicos/:id', async (req, res) => {
+  const { id } = req.params
+
+  try {
+    const [result] = await db.execute('DELETE FROM mecanicos WHERE id = ?', [id])
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Mecánico no encontrado.' })
+    }
+    res.status(200).json({ message: 'Mecánico eliminado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al eliminar mecánico:', error)
+    res.status(500).json({ message: 'Error en el servidor al eliminar el mecánico.' })
+  }
+})
 // --- 3. INICIAR SERVIDOR ---
 app.listen(PORT, () => {
   console.log(`Backend API REAL corriendo en http://localhost:${PORT}`)
