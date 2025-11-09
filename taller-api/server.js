@@ -15,9 +15,17 @@ const db = mysql.createPool({
 })
 
 // Middlewares
-app.use(cors())
-app.use(express.json()) // Permite a Express leer el cuerpo JSON
-app.use(express.urlencoded({ extended: true }))
+app.use(
+  cors({
+    origin: ['http://localhost:5175', 'http://localhost:5174', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+  }),
+)
+
+// PERMITE LEER DATOS JSON Y FORMULARIOS
+app.use(express.json())
+app.use(express.urlencoded({ extended: true })) // <-- CORRECCIÓN FINAL EN ESTE BLOQUE
 
 // --- 2. ENDPOINTS DE LA API REAL ---
 
@@ -327,6 +335,63 @@ app.put('/api/repuestos/:id', async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor al actualizar el repuesto.' })
   }
 })
+
+// S. CONSUMO (POST): Descuenta el stock de múltiples repuestos
+app.post('/api/inventario/consumir', async (req, res) => {
+  const { items } = req.body // items = [{id: 1, cantidad: 2}, {id: 3, cantidad: 1}]
+  const connection = await db.getConnection()
+
+  try {
+    await connection.beginTransaction() // Inicia la transacción
+
+    for (const item of items) {
+      // 1. Verifica el stock actual (CRÍTICO)
+      const [stockResult] = await connection.query('SELECT stock FROM repuestos WHERE id = ?', [
+        item.id,
+      ])
+      const stockActual = stockResult[0].stock
+
+      if (stockActual < item.cantidad) {
+        await connection.rollback() // Deshacer todo si no hay suficiente stock
+        return res.status(409).json({
+          message: `Stock insuficiente para repuesto ID ${item.id}. Stock actual: ${stockActual}`,
+        })
+      }
+
+      // 2. Descuenta el stock
+      await connection.execute('UPDATE repuestos SET stock = stock - ? WHERE id = ?', [
+        item.cantidad,
+        item.id,
+      ])
+    }
+
+    await connection.commit() // Confirma todos los cambios
+    res.status(200).json({ message: 'Stock descontado con éxito.' })
+  } catch (error) {
+    await connection.rollback() // Deshacer si hubo un error en el servidor
+    console.error('Error en la transacción de consumo de stock:', error)
+    res.status(500).json({ message: 'Error en el servidor al procesar el consumo de stock.' })
+  } finally {
+    connection.release() // Liberar la conexión
+  }
+})
+
+// T. LECTURA (GET): Obtener alerta de Stock Bajo (Ej: stock < 10)
+app.get('/api/alertas/stock', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT nombre, stock FROM repuestos WHERE stock < 10 ORDER BY stock ASC',
+    )
+    res.json({
+      count: rows.length,
+      items: rows,
+    })
+  } catch (error) {
+    console.error('Error al obtener alertas de stock:', error)
+    res.status(500).json({ message: 'Error al consultar alertas.' })
+  }
+})
+
 // Nota: La actualización (PUT) se implementaría si necesita modificar precio o stock.
 // --- 3. INICIAR SERVIDOR ---
 app.listen(PORT, () => {
