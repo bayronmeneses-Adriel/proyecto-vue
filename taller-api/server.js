@@ -392,6 +392,27 @@ app.get('/api/alertas/stock', async (req, res) => {
   }
 })
 
+// N. ACTUALIZACIÓN (PUT): Actualizar un cliente por ID
+app.put('/api/clientes/:id', async (req, res) => {
+  const { id } = req.params
+  const { nombre, telefono, email, direccion } = req.body
+
+  try {
+    const [result] = await db.execute(
+      'UPDATE clientes SET nombre = ?, telefono = ?, email = ?, direccion = ? WHERE id = ?',
+      [nombre, telefono, email, direccion, id],
+    )
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Cliente no encontrado.' })
+    }
+    res.status(200).json({ message: 'Cliente actualizado con éxito.', id: id })
+  } catch (error) {
+    console.error('Error al actualizar cliente:', error)
+    res.status(500).json({ message: 'Error en el servidor al actualizar el cliente.' })
+  }
+})
+
 // Nota: La actualización (PUT) se implementaría si necesita modificar precio o stock.
 // --- 3. INICIAR SERVIDOR ---
 app.listen(PORT, () => {
