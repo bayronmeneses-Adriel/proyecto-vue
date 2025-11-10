@@ -179,12 +179,11 @@ export default {
       mensajeExito: null,
 
       // --- CONFIGURACIÓN DE APIS (Todas usan puerto 3000) ---
-      API_URL: 'http://localhost:3000/api/coches',
-      API_MECANICOS: 'http://localhost:3000/api/mecanicos/disponibles',
-      API_CLIENTES: 'http://localhost:3000/api/clientes/lista',
-      API_REPUESTOS: 'http://localhost:3000/api/repuestos',
-      API_INVENTARIO_CONSUMO: 'http://localhost:3000/api/inventario/consumir', // Endpoint de consumo
-
+      API_URL: '/api/coches',
+      API_MECANICOS: '/api/mecanicos/disponibles',
+      API_CLIENTES: '/api/clientes/lista',
+      API_REPUESTOS: '/api/repuestos',
+      API_INVENTARIO_CONSUMO: '/api/inventario/consumir',
       // --- OBJETO QUE SE ENVÍA AL BACKEND ---
       nuevoCoche: {
         matricula: '',

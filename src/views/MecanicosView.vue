@@ -71,7 +71,7 @@ export default {
       cargando: true,
       errorLectura: null,
       errorCreacion: null,
-      API_URL: 'http://localhost:3000/api/mecanicos', // Endpoint base
+      API_URL: '/api/mecanicos', // Endpoint base
       nuevoMecanico: { nombre: '', especialidad: '', disponible: true },
       mensajeExito: null,
     }
@@ -86,18 +86,21 @@ export default {
   },
   methods: {
     // 1. OBTENER DATOS (GET)
-    fetchData() {
-      this.cargando = true
-      axios
-        .get(this.API_URL)
-        .then((response) => {
-          this.mecanicos = response.data
-          this.cargando = false
-        })
-        .catch(() => {
-          this.errorLectura = 'No se pudo conectar a la API para cargar mecánicos.'
-          this.cargando = false
-        })
+    async fetchData() {
+      this.cargando = true // 1. Empieza cargando
+      this.errorLectura = null
+
+      try {
+        const response = await axios.get(this.API_URL)
+        this.mecanicos = response.data // Éxito: Guardamos los datos
+      } catch (error) {
+        // Fallo: Activamos el mensaje de error
+        this.errorLectura = 'Error al cargar la lista de mecánicos.'
+        console.error('ERROR AL CARGAR MECÁNICOS:', error)
+      } finally {
+        // 2. ¡SIEMPRE SE EJECUTA! Quita el bloqueo y permite renderizar la tabla o el error.
+        this.cargando = false
+      }
     },
 
     // 2. AGREGAR DATOS (POST) - Se mantiene igual

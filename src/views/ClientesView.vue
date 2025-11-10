@@ -93,7 +93,7 @@ export default {
       cargando: true,
       errorLectura: null,
       errorCreacion: null,
-      API_URL: 'http://localhost:3000/api/clientes',
+      API_URL: '/api/clientes',
 
       nuevoCliente: { nombre: '', telefono: '', email: '', direccion: '' },
       clienteSeleccionado: null, // Variable para la edición

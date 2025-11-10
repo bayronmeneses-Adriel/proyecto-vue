@@ -50,8 +50,8 @@ export default {
       metricas: {},
       cargando: true,
       error: null,
-      API_URL: 'http://localhost:3000/api/metricas',
-      API_ALERTAS_STOCK: 'http://localhost:3000/api/alertas/stock', // Nuevo endpoint
+      API_URL: '/api/metricas',
+      API_ALERTAS_STOCK: '/api/alertas/stock', // Nuevo endpoint
       stockAlertas: null, // Nuevo estado para alertas de inventario
     }
   },

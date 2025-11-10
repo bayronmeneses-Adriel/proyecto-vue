@@ -126,7 +126,7 @@ export default {
       cargando: true,
       errorLectura: null,
       errorCreacion: null,
-      API_URL: 'http://localhost:3000/api/repuestos',
+      API_URL: '/api/repuestos',
       repuestoSeleccionado: null, // Controla el modal de edición
 
       // Inicialización a NULL para que los placeholders se vean
