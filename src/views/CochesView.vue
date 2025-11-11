@@ -1,160 +1,254 @@
 <template>
   <div class="coches-view">
-    <h1>Gestión de Vehículos 🚗</h1>
-
-    <div class="formulario-agregar">
-      <h2>Añadir Nuevo Vehículo (Asignación Directa)</h2>
-      <form @submit.prevent="agregarCoche">
-        <div class="input-group">
-          <input
-            type="text"
-            v-model="nuevoCoche.matricula"
-            placeholder="Placas (Matrícula Ej: NEW-111)"
-            required
-          />
-          <input
-            type="text"
-            v-model="nuevoCoche.modelo"
-            placeholder="Modelo de Carro (Ej: Audi A4)"
-            required
-          />
+    <!-- HERO -->
+    <section class="coches-hero">
+      <div class="hero-row">
+        <div>
+          <h1>Gestión de Vehículos <span>🚗</span></h1>
+          <div class="coches-kpi mt-2">
+            <i class="bi bi-speedometer2"></i> {{ coches.length }} en el taller
+          </div>
         </div>
-
-        <textarea
-          v-model="nuevoCoche.problema_descripcion"
-          placeholder="Descripción detallada del problema o servicio solicitado"
-          required
-        ></textarea>
-
-        <div class="input-group">
-          <select v-model="nuevoCoche.cliente_id" required>
-            <option :value="null" disabled>-- Seleccione el Cliente --</option>
-            <option v-for="cliente in listaClientes" :key="cliente.id" :value="cliente.id">
-              {{ cliente.nombre }}
-            </option>
-          </select>
-
-          <select v-model="nuevoCoche.mecanicoAsignado" required>
-            <option :value="null" disabled>-- Seleccione Mecánico Disponible --</option>
-            <option
-              v-for="mecanico in mecanicosDisponibles"
-              :key="mecanico.id"
-              :value="mecanico.nombre"
-            >
-              {{ mecanico.nombre }}
-            </option>
-          </select>
-        </div>
-
-        <hr style="border-top: 1px dashed #444; margin: 20px 0" />
-
-        <h3 class="seccion-titulo">Consumo de Inventario</h3>
-
-        <div class="repuesto-asignacion">
-          <select v-model="repuestoSeleccionadoId">
-            <option :value="null" disabled>-- Añadir Repuesto Necesario --</option>
-            <option v-for="repuesto in listaRepuestos" :key="repuesto.id" :value="repuesto.id">
-              {{ repuesto.nombre }} (Stock: {{ repuesto.stock }})
-            </option>
-          </select>
-          <input
-            type="number"
-            v-model.number="cantidadRepuesto"
-            min="1"
-            placeholder="Cantidad"
-            style="max-width: 100px"
-          />
-          <button
-            type="button"
-            @click="agregarRepuestoAlFormulario"
-            :disabled="!repuestoSeleccionadoId || cantidadRepuesto <= 0"
-            class="btn-action complete"
-          >
-            Añadir
+        <div class="hero-actions">
+          <button class="btn-action start" @click="fetchData">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
           </button>
         </div>
+      </div>
+    </section>
 
-        <div v-if="nuevoCoche.repuestosUsados.length > 0" class="repuestos-lista">
-          <h4>Repuestos Asignados:</h4>
-          <ul>
-            <li v-for="(item, index) in nuevoCoche.repuestosUsados" :key="index">
-              {{ item.nombre }} (x{{ item.cantidad }})
-              <span @click="removerRepuesto(index)" class="remover-btn">❌</span>
-            </li>
-          </ul>
-        </div>
+    <!-- FILTROS -->
+    <div class="coches-filtros">
+      <div class="search">
+        <i class="bi bi-search"></i>
+        <input
+          type="text"
+          v-model="query"
+          placeholder="Buscar por placa, modelo, problema o mecánico…"
+          aria-label="Buscar"
+        />
+      </div>
 
-        <button type="submit" class="btn-action final-submit">Registrar y Asignar</button>
-      </form>
-
-      <p v-if="mensajeExito" class="exito">{{ mensajeExito }}</p>
-      <p v-if="errorCreacion" class="error">{{ errorCreacion }}</p>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Todos' }"
+        @click="fEstado = 'Todos'"
+      >
+        Todos
+      </button>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Pendiente' }"
+        @click="fEstado = 'Pendiente'"
+      >
+        Pendiente
+      </button>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'En reparación' }"
+        @click="fEstado = 'En reparación'"
+      >
+        En reparación
+      </button>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Listo para entrega' }"
+        @click="fEstado = 'Listo para entrega'"
+      >
+        Listo
+      </button>
     </div>
 
-    <p v-if="cargando">Cargando vehículos desde la API...</p>
-    <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
-    <p v-else>Total de vehículos en el taller: {{ coches.length }}</p>
+    <!-- CONTENIDO: LISTADO + ASIDE -->
+    <div class="grid-2">
+      <!-- LISTADO EN CARDS -->
+      <section>
+        <p v-if="cargando">Cargando vehículos desde la API…</p>
+        <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
+        <p v-else class="muted">Total de vehículos en el taller: {{ coches.length }}</p>
 
-    <table v-if="!cargando && !errorLectura">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Matrícula</th>
-          <th>Modelo</th>
-          <th>Cliente ID</th>
-          <th>Problema</th>
-          <th>Estado</th>
-          <th>Mecánico Asignado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
+        <div class="vehicle-list" v-if="!cargando && !errorLectura">
+          <article v-for="coche in cochesFiltrados" :key="coche.id" class="vehicle-card">
+            <div>
+              <div class="vehicle-title">
+                <span class="plate">{{ coche.matricula }}</span>
+                <strong>{{ coche.modelo }}</strong>
+                <span
+                  class="badge"
+                  :class="{
+                    'badge-pend': coche.estado === 'Pendiente',
+                    'badge-run': coche.estado === 'En reparación',
+                    'badge-done': coche.estado === 'Listo para entrega',
+                  }"
+                >
+                  {{ coche.estado }}
+                </span>
+              </div>
 
-      <tbody>
-        <tr v-for="coche in coches" :key="coche.id">
-          <td>{{ coche.id }}</td>
-          <td>{{ coche.matricula }}</td>
-          <td>{{ coche.modelo }}</td>
-          <td>{{ coche.cliente_id || 'N/A' }}</td>
-          <td>{{ coche.problema_descripcion }}</td>
+              <div class="v-meta">
+                <i class="bi bi-person"></i>
+                Cliente: <strong>{{ coche.cliente_id ?? 'N/A' }}</strong>
+                ·
+                <i class="bi bi-wrench-adjustable"></i>
+                Mecánico: <strong>{{ coche.mecanicoAsignado || 'Sin Asignar' }}</strong>
+              </div>
 
-          <td
-            :class="[
-              coche.estado === 'Pendiente' ? 'pendiente-estado' : '',
-              coche.estado === 'En reparación' ? 'reparacion-estado' : '',
-              coche.estado === 'Listo para entrega' ? 'listo-estado' : '',
-            ]"
-          >
-            {{ coche.estado }}
-          </td>
+              <div class="v-desc">
+                {{ coche.problema_descripcion }}
+              </div>
+            </div>
 
-          <td>{{ coche.mecanicoAsignado || 'Sin Asignar' }}</td>
-          <td>
-            <button
-              v-if="coche.estado === 'Pendiente'"
-              @click="actualizarEstado(coche.id, 'En reparación', coche.mecanicoAsignado)"
-              class="btn-action start"
-            >
-              Iniciar Reparación
+            <div class="v-actions">
+              <button
+                v-if="coche.estado === 'Pendiente'"
+                @click="actualizarEstado(coche.id, 'En reparación', coche.mecanicoAsignado)"
+                class="btn-action start"
+                title="Iniciar reparación"
+              >
+                <i class="bi bi-play-fill"></i> Iniciar
+              </button>
+
+              <button
+                v-else-if="coche.estado === 'En reparación'"
+                @click="actualizarEstado(coche.id, 'Listo para entrega', coche.mecanicoAsignado)"
+                class="btn-action complete"
+                title="Marcar listo para entrega"
+              >
+                <i class="bi bi-check2-circle"></i> Finalizar
+              </button>
+
+              <button
+                v-if="coche.estado === 'Listo para entrega' || coche.estado === 'Pendiente'"
+                @click="eliminarCoche(coche.id)"
+                class="btn-action delete"
+                title="Eliminar"
+              >
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
+          </article>
+
+          <!-- Estado vacío elegante -->
+          <div v-if="cochesFiltrados.length === 0" class="empty">
+            <i class="bi bi-inbox"></i>
+            <div>No hay vehículos que coincidan con el filtro.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ASIDE: FORMULARIO DE REGISTRO Y ASIGNACIÓN -->
+      <aside class="coches-aside">
+        <div class="card">
+          <h2 class="mb-2">Registrar vehículo y asignar</h2>
+
+          <form class="form-modern" @submit.prevent="agregarCoche">
+            <!-- DATOS -->
+            <p class="section-title">Datos del vehículo</p>
+            <div class="grid-2">
+              <div class="field">
+                <label>Placas <span class="req">*</span></label>
+                <input
+                  type="text"
+                  v-model="nuevoCoche.matricula"
+                  placeholder="Ej.: NEW-111"
+                  required
+                />
+              </div>
+              <div class="field">
+                <label>Modelo <span class="req">*</span></label>
+                <input
+                  type="text"
+                  v-model="nuevoCoche.modelo"
+                  placeholder="Ej.: Audi A4"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Descripción del problema</label>
+              <textarea
+                v-model="nuevoCoche.problema_descripcion"
+                rows="3"
+                placeholder="Detalla el problema o servicio solicitado"
+              ></textarea>
+            </div>
+
+            <!-- ASIGNACIÓN -->
+            <div class="divider"></div>
+            <p class="section-title">Asignación</p>
+            <div class="grid-2">
+              <div class="field">
+                <label>Cliente <span class="req">*</span></label>
+                <select v-model="nuevoCoche.cliente_id" required>
+                  <option :value="null" disabled>— Seleccione el Cliente —</option>
+                  <option v-for="c in listaClientes" :key="c.id" :value="c.id">
+                    {{ c.nombre }}
+                  </option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Mecánico <span class="req">*</span></label>
+                <select v-model="nuevoCoche.mecanicoAsignado" required>
+                  <option :value="null" disabled>— Seleccione Mecánico —</option>
+                  <option v-for="m in mecanicosDisponibles" :key="m.id" :value="m.nombre">
+                    {{ m.nombre }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <!-- INVENTARIO -->
+            <div class="divider"></div>
+            <p class="section-title">Consumo de inventario</p>
+
+            <div class="inv-row">
+              <select v-model="repuestoSeleccionadoId">
+                <option :value="null" disabled>— Añadir repuesto —</option>
+                <option v-for="r in listaRepuestos" :key="r.id" :value="r.id">
+                  {{ r.nombre }} (Stock: {{ r.stock }})
+                </option>
+              </select>
+
+              <div class="qty">
+                <button type="button" class="qty-btn" @click="decQty">−</button>
+                <input
+                  type="number"
+                  inputmode="numeric"
+                  v-model.number="cantidadRepuesto"
+                  min="1"
+                  step="1"
+                />
+                <button type="button" class="qty-btn" @click="incQty">+</button>
+              </div>
+
+              <button
+                type="button"
+                class="btn-action start add-btn"
+                :disabled="!repuestoSeleccionadoId || cantidadRepuesto <= 0"
+                @click="agregarRepuestoAlFormulario"
+              >
+                Añadir
+              </button>
+            </div>
+
+            <ul v-if="nuevoCoche.repuestosUsados.length" class="chips">
+              <li v-for="(item, i) in nuevoCoche.repuestosUsados" :key="i" class="chip">
+                {{ item.nombre }} × {{ item.cantidad }}
+                <button type="button" class="chip-x" @click="removerRepuesto(i)">✕</button>
+              </li>
+            </ul>
+
+            <button type="submit" class="btn-action primary-submit w-100">
+              Registrar y Asignar
             </button>
-            <button
-              v-else-if="coche.estado === 'En reparación'"
-              @click="actualizarEstado(coche.id, 'Listo para entrega', coche.mecanicoAsignado)"
-              class="btn-action complete"
-            >
-              Marcar Listo
-            </button>
+          </form>
 
-            <button
-              v-if="coche.estado === 'Listo para entrega' || coche.estado === 'Pendiente'"
-              @click="eliminarCoche(coche.id)"
-              class="btn-action delete"
-            >
-              Eliminar
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          <p v-if="mensajeExito" class="exito mt-2">{{ mensajeExito }}</p>
+          <p v-if="errorCreacion" class="error mt-2">{{ errorCreacion }}</p>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -167,9 +261,13 @@ export default {
       coches: [],
       listaClientes: [],
       mecanicosDisponibles: [],
-      listaRepuestos: [], // Lista para el dropdown
+      listaRepuestos: [],
 
-      // --- VARIABLES TEMPORALES (Corregidas, fuera de nuevoCoche) ---
+      // Filtros UI
+      query: '',
+      fEstado: 'Todos',
+
+      // Vars temporales inventario
       repuestoSeleccionadoId: null,
       cantidadRepuesto: 1,
 
@@ -178,13 +276,12 @@ export default {
       errorCreacion: null,
       mensajeExito: null,
 
-      // --- CONFIGURACIÓN DE APIS (Todas usan puerto 3000) ---
       API_URL: '/api/coches',
       API_MECANICOS: '/api/mecanicos/disponibles',
       API_CLIENTES: '/api/clientes/lista',
       API_REPUESTOS: '/api/repuestos',
       API_INVENTARIO_CONSUMO: '/api/inventario/consumir',
-      // --- OBJETO QUE SE ENVÍA AL BACKEND ---
+
       nuevoCoche: {
         matricula: '',
         modelo: '',
@@ -192,18 +289,44 @@ export default {
         estado: 'Pendiente',
         mecanicoAsignado: null,
         cliente_id: null,
-        repuestosUsados: [], // Array que se envía
+        repuestosUsados: [],
       },
     }
+  },
+  computed: {
+    cochesFiltrados() {
+      const q = this.query.trim().toLowerCase()
+      return this.coches
+        .filter((c) => (this.fEstado === 'Todos' ? true : c.estado === this.fEstado))
+        .filter((c) => {
+          if (!q) return true
+          return (
+            String(c.matricula || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(c.modelo || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(c.problema_descripcion || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(c.mecanicoAsignado || '')
+              .toLowerCase()
+              .includes(q) ||
+            String(c.cliente_id || '')
+              .toLowerCase()
+              .includes(q)
+          )
+        })
+    },
   },
   mounted() {
     this.fetchData()
     this.fetchMecanicosDisponibles()
     this.fetchClientes()
-    this.fetchRepuestos() // Cargar la lista de repuestos
+    this.fetchRepuestos()
   },
   methods: {
-    // 1. OBTENER COCHES (GET) - Se mantiene
     fetchData() {
       this.cargando = true
       this.errorLectura = null
@@ -218,141 +341,81 @@ export default {
           this.cargando = false
         })
     },
-
-    // 2. OBTENER MECÁNICOS DISPONIBLES (GET) - Se mantiene
     fetchMecanicosDisponibles() {
       axios
         .get(this.API_MECANICOS)
-        .then((response) => {
-          this.mecanicosDisponibles = response.data
-        })
-        .catch((error) => {
-          console.error('Error al cargar mecánicos disponibles:', error)
-        })
+        .then((response) => (this.mecanicosDisponibles = response.data))
+        .catch((e) => console.error('Error al cargar mecánicos disponibles:', e))
     },
-
-    // 3. OBTENER LISTA DE CLIENTES (GET) - Se mantiene
     fetchClientes() {
       axios
         .get(this.API_CLIENTES)
-        .then((response) => {
-          this.listaClientes = response.data
-        })
-        .catch((error) => {
-          console.error('Error al cargar lista de clientes:', error)
-        })
+        .then((response) => (this.listaClientes = response.data))
+        .catch((e) => console.error('Error al cargar lista de clientes:', e))
     },
-
-    // 4. OBTENER LISTA DE REPUESTOS (GET) - Necesario para el selector
     fetchRepuestos() {
       axios
         .get(this.API_REPUESTOS)
-        .then((response) => {
-          this.listaRepuestos = response.data
-        })
-        .catch((error) => {
-          console.error('Error al cargar lista de repuestos para el formulario:', error)
-        })
+        .then((response) => (this.listaRepuestos = response.data))
+        .catch((e) => console.error('Error al cargar repuestos:', e))
     },
-
-    // 5. AGREGAR REPUESTO AL FORMULARIO (CLIENT-SIDE)
     agregarRepuestoAlFormulario() {
-      this.errorCreacion = null // Limpiar mensajes de error
-
+      this.errorCreacion = null
       if (!this.repuestoSeleccionadoId || this.cantidadRepuesto <= 0) {
         this.errorCreacion = 'Debe seleccionar un repuesto y una cantidad válida.'
         return
       }
-
       const repuesto = this.listaRepuestos.find((r) => r.id === this.repuestoSeleccionadoId)
+      if (!repuesto) return
 
-      if (repuesto) {
-        const cantidadAAgregar = this.cantidadRepuesto
-        const stockDisponible = repuesto.stock
+      const idx = this.nuevoCoche.repuestosUsados.findIndex((i) => i.id === repuesto.id)
+      const nuevaCantidad =
+        (idx !== -1 ? this.nuevoCoche.repuestosUsados[idx].cantidad : 0) + this.cantidadRepuesto
 
-        // Buscar si el ítem ya está en la lista temporal de consumo
-        const existingIndex = this.nuevoCoche.repuestosUsados.findIndex(
-          (item) => item.id === repuesto.id,
-        )
-
-        let cantidadTotalSolicitada = cantidadAAgregar
-
-        if (existingIndex !== -1) {
-          // Si ya existe, calculamos la nueva cantidad total (existente + nueva)
-          cantidadTotalSolicitada =
-            this.nuevoCoche.repuestosUsados[existingIndex].cantidad + cantidadAAgregar
-        }
-
-        // --- VERIFICACIÓN DE STOCK CRÍTICA ---
-        if (stockDisponible < cantidadTotalSolicitada) {
-          this.errorCreacion = `Stock insuficiente para ${repuesto.nombre}. Solo quedan ${stockDisponible} unidades disponibles.`
-          return
-        }
-
-        // --- PROCESAR SUMA O ADICIÓN ---
-        if (existingIndex !== -1) {
-          // Si ya existe, sumar la nueva cantidad
-          this.nuevoCoche.repuestosUsados[existingIndex].cantidad = cantidadTotalSolicitada
-        } else {
-          // Si no existe, añadir nuevo ítem
-          const itemConsumido = {
-            id: repuesto.id,
-            nombre: repuesto.nombre,
-            cantidad: cantidadAAgregar,
-          }
-          this.nuevoCoche.repuestosUsados.push(itemConsumido)
-        }
-
-        this.mensajeExito = `Añadido ${cantidadAAgregar}x ${repuesto.nombre} a la orden.`
-
-        // Limpiar selección temporal
-        this.repuestoSeleccionadoId = null
-        this.cantidadRepuesto = 1
+      if (repuesto.stock < nuevaCantidad) {
+        this.errorCreacion = `Stock insuficiente para ${repuesto.nombre}. Solo quedan ${repuesto.stock} unidades.`
+        return
       }
-    },
 
-    // 6. REMOVER UN REPUESTO DE LA LISTA TEMPORAL
+      if (idx !== -1) {
+        this.nuevoCoche.repuestosUsados[idx].cantidad = nuevaCantidad
+      } else {
+        this.nuevoCoche.repuestosUsados.push({
+          id: repuesto.id,
+          nombre: repuesto.nombre,
+          cantidad: this.cantidadRepuesto,
+        })
+      }
+
+      this.mensajeExito = `Añadido ${this.cantidadRepuesto}× ${repuesto.nombre} a la orden.`
+      this.repuestoSeleccionadoId = null
+      this.cantidadRepuesto = 1
+    },
     removerRepuesto(index) {
       this.nuevoCoche.repuestosUsados.splice(index, 1)
     },
-
-    // 7. REGISTRAR COCHE (POST)
     async agregarCoche() {
       this.errorCreacion = null
       this.mensajeExito = null
 
-      // Validar Mecánico y Cliente (EXISTENTE)
       if (!this.nuevoCoche.mecanicoAsignado || !this.nuevoCoche.cliente_id) {
         this.errorCreacion =
           'Debe seleccionar tanto el Mecánico como el Cliente para registrar el vehículo.'
         return
       }
-
-      // --- NUEVA VALIDACIÓN CRÍTICA: REQUISITO DE REPUESTOS ---
       if (this.nuevoCoche.repuestosUsados.length === 0) {
         this.errorCreacion =
-          'Es necesario ingresar un producto en la sección de Consumo de Inventario antes de registrar el coche.'
+          'Es necesario ingresar un producto en Consumo de Inventario antes de registrar.'
         return
       }
-      // --------------------------------------------------------
 
       try {
-        // --- 1. PROCESAR CONSUMO DE STOCK ---
         if (this.nuevoCoche.repuestosUsados.length > 0) {
-          // Nota: Se asume que este endpoint se conecta al puerto 3000 de tu API
-          await axios.post(this.API_INVENTARIO_CONSUMO, {
-            items: this.nuevoCoche.repuestosUsados,
-          })
+          await axios.post(this.API_INVENTARIO_CONSUMO, { items: this.nuevoCoche.repuestosUsados })
         }
-
-        // --- 2. REGISTRAR EL COCHE ---
         const response = await axios.post(this.API_URL, this.nuevoCoche)
-
-        // 3. ACTUALIZACIONES LOCALES (ÉXITO)
         this.coches.unshift(response.data)
-        this.mensajeExito = `Vehículo ${response.data.matricula} añadido y asignado al Cliente ID ${response.data.cliente_id} y a ${response.data.mecanicoAsignado}.`
-
-        // Limpiar el formulario y reiniciar la lista de repuestos
+        this.mensajeExito = `Vehículo ${response.data.matricula} añadido y asignado.`
         this.nuevoCoche = {
           matricula: '',
           modelo: '',
@@ -360,46 +423,31 @@ export default {
           estado: 'Pendiente',
           mecanicoAsignado: null,
           cliente_id: null,
-          repuestosUsados: [], // ARRAY DE REPUESTOS VACÍO
+          repuestosUsados: [],
         }
-
-        // Limpiar las variables temporales de inventario
         this.repuestoSeleccionadoId = null
         this.cantidadRepuesto = 1
-
-        // Recargar listas necesarias (para actualizar el stock visible)
         this.fetchMecanicosDisponibles()
         this.fetchRepuestos()
       } catch (error) {
-        // --- MANEJO DE ERRORES (Stock insuficiente o matrícula duplicada) ---
-        if (error.response) {
-          if (error.response.status === 409) {
-            this.errorCreacion =
-              error.response.data.message ||
-              'Error: La matrícula ya existe o el stock es insuficiente.'
-          } else {
-            this.errorCreacion = 'No se pudo crear el vehículo. Error en la API.'
-          }
+        if (error.response?.status === 409) {
+          this.errorCreacion =
+            error.response.data.message || 'Error: matrícula ya existe o stock insuficiente.'
         } else {
-          this.errorCreacion = 'No se pudo crear el vehículo. Revisa la conexión al Backend.'
+          this.errorCreacion = 'No se pudo crear el vehículo. Revisa la API.'
         }
         console.error('Error al agregar coche:', error)
       }
     },
-    // 8. ACTUALIZAR ESTADO (PUT) - Se mantiene igual
     async actualizarEstado(id, nuevoEstado, mecanicoAsignado) {
       try {
         const url = `${this.API_URL}/${id}`
         const asignacion = nuevoEstado === 'Listo para entrega' ? null : mecanicoAsignado
-        const data = {
-          estado: nuevoEstado,
-          mecanicoAsignado: asignacion,
-        }
-        await axios.put(url, data)
-        const index = this.coches.findIndex((c) => c.id === id)
-        if (index !== -1) {
-          this.coches[index].estado = nuevoEstado
-          this.coches[index].mecanicoAsignado = asignacion
+        await axios.put(url, { estado: nuevoEstado, mecanicoAsignado: asignacion })
+        const i = this.coches.findIndex((c) => c.id === id)
+        if (i !== -1) {
+          this.coches[i].estado = nuevoEstado
+          this.coches[i].mecanicoAsignado = asignacion
         }
         this.fetchMecanicosDisponibles()
       } catch (error) {
@@ -407,19 +455,15 @@ export default {
         console.error('Error al actualizar:', error)
       }
     },
-
-    // 9. ELIMINAR COCHE (DELETE) - Se mantiene igual
     async eliminarCoche(id) {
       if (
         !confirm(
           `¿Está seguro de eliminar el vehículo con ID ${id}? Esta acción no se puede deshacer.`,
         )
-      ) {
+      )
         return
-      }
       try {
-        const url = `${this.API_URL}/${id}`
-        await axios.delete(url)
+        await axios.delete(`${this.API_URL}/${id}`)
         this.coches = this.coches.filter((c) => c.id !== id)
         this.mensajeExito = `Vehículo con ID ${id} eliminado correctamente.`
         this.errorLectura = null
@@ -428,190 +472,416 @@ export default {
         console.error('Error al eliminar:', error)
       }
     },
+
+    // MÉTODOS PARA EL CONTROL DE CANTIDAD
+    incQty() {
+      this.cantidadRepuesto += 1
+    },
+
+    decQty() {
+      if (this.cantidadRepuesto > 1) {
+        this.cantidadRepuesto -= 1
+      }
+    },
   },
 }
 </script>
 
 <style scoped>
-/* Estilos se mantienen */
-.coches-view {
-  padding: 20px;
+/* ====== HERO ====== */
+.coches-hero {
+  background: linear-gradient(180deg, #f4f7ff, transparent);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 18px 0;
 }
-/* ... otros estilos ... */
-
-/* --- ESTILOS DE FORMULARIO MEJORADOS --- */
-.formulario-agregar {
-  padding: 20px;
-  margin-bottom: 20px;
-  background-color: #1a2430; /* Fondo ligeramente más claro para el formulario */
-  border: 1px solid #333;
-  border-radius: 8px;
-}
-.input-group {
+.hero-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
-/* Estilo unificado para inputs y selects */
-.input-group input,
-.input-group select {
-  flex: 1;
-  padding: 12px; /* Aumentamos el padding para hacerlo más alto */
-  background-color: #2c3e50; /* Color de fondo oscuro similar al de la tabla */
-  color: white;
-  border: 1px solid #444;
-  border-radius: 4px;
-  font-size: 1em;
-  /* Eliminar la flecha por defecto de Chrome para select */
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
+.coches-kpi {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: var(--primary-10);
+  color: var(--primary);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 800;
 }
-/* Arreglo para que el select se vea igual que el input en todos los navegadores */
-.input-group select {
-  /* Añadimos un pequeño margen para compensar la flecha personalizada (opcional) */
-  background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20fill%3D%22%23ffffff%22%20d%3D%22M7.41%208.59L12%2013.17l4.59-4.58L18%2010l-6%206-6-6z%22%2F%3E%3C%2Fsvg%3E');
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px; /* Dejar espacio para la flecha */
+.hero-actions {
+  display: flex;
+  gap: 8px;
 }
 
-textarea {
-  width: 100%;
-  min-height: 80px;
-  margin-bottom: 10px;
-  padding: 10px;
-  box-sizing: border-box;
-  border: 1px solid #444;
-  background-color: #2c3e50;
-  color: white;
-  border-radius: 4px;
-}
-/* Estilos se mantienen */
-.coches-view {
-  padding: 20px;
-}
-.error {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-.exito {
-  color: #42b983;
-  font-weight: bold;
-}
-.formulario-agregar {
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #333;
-  border-radius: 8px;
-}
-.input-group {
+/* ====== FILTROS ====== */
+.coches-filtros {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
 }
-.input-group input,
-.input-group select {
+.coches-filtros .search {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
 }
-textarea {
-  width: 100%;
-  min-height: 80px;
-  margin-bottom: 10px;
-  padding: 10px;
-  box-sizing: border-box;
-  border: 1px solid #444;
-  background-color: #2c3e50;
-  color: white;
-  border-radius: 4px;
-}
-.btn-action {
-  padding: 5px 10px;
+.coches-filtros .search input {
   border: none;
-  border-radius: 4px;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  color: var(--text);
+}
+.filter-pill {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 0.85em;
-  margin: 2px;
-  transition: background-color 0.3s;
+  user-select: none;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s;
 }
-.start {
-  background-color: #f39c12;
-  color: white;
+.filter-pill:hover {
+  background: #f3f4f6;
 }
-.complete {
-  background-color: #3498db;
-  color: white;
-}
-.delete {
-  background-color: #e74c3c;
-  color: white;
-}
-npm run dev .pendiente-estado {
-  color: #f39c12;
-  font-weight: bold;
-}
-.reparacion-estado {
-  color: #3498db;
-  font-weight: bold;
-}
-.listo-estado {
-  color: #42b983;
-  font-weight: bold;
-}
-.seccion-titulo {
-  font-size: 1.3em;
+.filter-pill.active {
+  background: var(--primary);
   color: #fff;
-  margin-top: 20px;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #444;
-  padding-bottom: 5px;
+  border-color: var(--primary);
 }
 
-.repuesto-asignacion {
+/* ====== GRID ====== */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 992px) {
+  .grid-2 {
+    grid-template-columns: 1.6fr 0.9fr;
+  }
+}
+
+/* ====== CARDS LIST ====== */
+.vehicle-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 992px) {
+  .vehicle-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.vehicle-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
+}
+.vehicle-card:hover {
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.vehicle-title {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.plate {
+  font-family: ui-monospace, Menlo, monospace;
+  background: var(--info-10);
+  color: var(--info);
+  border-radius: 10px;
+  padding: 0.2rem 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.v-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+.v-desc {
+  font-size: 0.92rem;
+}
+.v-actions {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.v-actions .btn-action {
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.v-actions .btn-action:hover {
+  background: #f3f4f6;
+}
+
+/* Badges estado */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.badge-pend {
+  background: color-mix(in srgb, var(--warning) 14%, #fff);
+  color: var(--warning);
+}
+.badge-run {
+  background: var(--info-10);
+  color: var(--info);
+}
+.badge-done {
+  background: var(--success-10);
+  color: var(--success);
+}
+.badge-muted {
+  background: #eef2f7;
+  color: var(--text-muted);
+}
+
+/* ====== ASIDE FORM ====== */
+.coches-aside {
+  position: sticky;
+  top: 16px;
+  height: max-content;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+.step strong {
+  color: var(--text);
+}
+
+.inv-row {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 0.5rem;
+}
+.inv-row .qty-group {
+  display: flex;
+}
+.inv-row .qty-group input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.inv-row .qty-group .btn-action {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.repuestos-lista {
+  margin: 10px 0;
+}
+.repuestos-lista ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.repuestos-lista li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.link.danger {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* ====== EMPTY ====== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* ====== FORM MODERNO (ASIDE) ====== */
+.form-modern {
+  display: grid;
+  gap: 14px;
+}
+.section-title {
+  font-weight: 700;
+  color: var(--text);
+  margin: 4px 0 2px;
+}
+.req {
+  color: var(--danger);
+}
+
+/* Grid dos columnas, colapsa en móvil */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+.field label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.field input,
+.field select,
+.field textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 12px;
+  color: var(--text);
+}
+.field textarea {
+  resize: vertical;
+}
+
+/* Separador */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0 6px;
+}
+
+/* Fila inventario */
+.inv-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
   gap: 10px;
   align-items: center;
-  background-color: #2c3e50; /* Fondo más oscuro para el área de asignación */
-  padding: 15px;
-  border-radius: 8px;
+}
+.add-btn {
+  white-space: nowrap;
 }
 
-/* Estilo para los selectores de repuesto y el input de cantidad */
-.repuesto-asignacion select,
-.repuesto-asignacion input[type='number'] {
-  padding: 10px;
-  border: 1px solid #555;
-  background-color: #1e2a38; /* Fondo oscuro */
-  color: white;
-  border-radius: 4px;
-  height: 40px; /* Uniformidad de altura */
+/* Qty stepper */
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.repuesto-asignacion select {
-  flex-grow: 1; /* Ocupa el mayor espacio posible */
-}
-
-.repuesto-asignacion input[type='number'] {
-  max-width: 80px; /* Campo de cantidad pequeño */
+.qty input {
+  width: 56px;
   text-align: center;
+  border: 0;
+  background: var(--surface);
+  padding: 8px 6px;
+  color: var(--text);
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
-
-.repuesto-asignacion .btn-action {
-  height: 40px;
-  background-color: #42b983; /* Nuevo color para el botón 'Añadir' */
-  color: white;
+.qty input::-webkit-outer-spin-button,
+.qty input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
-
-/* Estilos para la lista de repuestos ya asignados */
-.repuestos-lista {
-  margin-top: 15px;
-  padding: 10px;
-  border-left: 3px solid #42b983;
-}
-.remover-btn {
-  color: #e74c3c;
+.qty-btn {
+  background: var(--surface-2);
+  border: 0;
+  padding: 8px 10px;
   cursor: pointer;
-  font-weight: bold;
-  margin-left: 10px;
+  font-weight: 700;
+}
+.qty-btn:hover {
+  background: #eef2f7;
+}
+
+/* Chips de repuestos */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 2px;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.chip-x {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.chip-x:hover {
+  color: var(--danger);
+}
+
+/* Botón ancho */
+.w-100 {
+  width: 100%;
+}
+.mt-2 {
+  margin-top: 8px;
 }
 </style>

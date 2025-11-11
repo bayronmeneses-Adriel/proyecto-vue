@@ -1,84 +1,148 @@
 <template>
   <div class="repuestos-view">
-    <h1>Gestión de Inventario (Repuestos) 📦</h1>
+    <!-- HERO -->
+    <section class="coches-hero">
+      <div class="hero-row">
+        <div>
+          <h1>Inventario (Repuestos) <span>📦</span></h1>
+          <div class="coches-kpi">
+            <i class="bi bi-box-seam"></i> {{ repuestos.length }} repuestos
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button class="btn-action start" @click="fetchData">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
+          </button>
+        </div>
+      </div>
+    </section>
 
-    <div class="formulario-agregar">
-      <h2>Registrar Nuevo Repuesto</h2>
-      <form @submit.prevent="agregarRepuesto">
-        <div class="input-group">
-          <input type="text" v-model="nuevoRepuesto.nombre" placeholder="Nombre" required />
-          <input
-            type="text"
-            v-model="nuevoRepuesto.codigo"
-            placeholder="Código (Ej: FSA123)"
-            required
-          />
-          <input type="text" v-model="nuevoRepuesto.fabricante" placeholder="Fabricante" />
-        </div>
-        <div class="input-group">
-          <input
-            type="number"
-            v-model.number="nuevoRepuesto.stock"
-            placeholder="Stock Inicial"
-            required
-          />
-          <input
-            type="number"
-            step="0.01"
-            v-model.number="nuevoRepuesto.precio"
-            placeholder="Precio (Ej: 15.50)"
-            required
-          />
-          <button type="submit">Añadir a Inventario</button>
-        </div>
-      </form>
-      <p v-if="mensajeExito" class="exito">{{ mensajeExito }}</p>
-      <p v-if="errorCreacion" class="error">{{ errorCreacion }}</p>
+    <!-- FILTROS -->
+    <div class="coches-filtros">
+      <div class="search">
+        <i class="bi bi-search"></i>
+        <input
+          v-model="query"
+          type="text"
+          placeholder="Buscar por nombre, código, fabricante…"
+          aria-label="Buscar repuesto"
+        />
+      </div>
+
+      <button class="filter-pill" :class="{ active: fStock === 'Todos' }" @click="fStock = 'Todos'">
+        Todos
+      </button>
+      <button class="filter-pill" :class="{ active: fStock === 'Bajo' }" @click="fStock = 'Bajo'">
+        Stock bajo
+      </button>
+      <button class="filter-pill" :class="{ active: fStock === 'Sin' }" @click="fStock = 'Sin'">
+        Sin stock
+      </button>
     </div>
 
-    <p v-if="cargando">Cargando inventario...</p>
-    <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
+    <!-- CONTENIDO: LISTA + ASIDE -->
+    <div class="grid-2">
+      <!-- LISTA EN CARDS -->
+      <section>
+        <p v-if="cargando">Cargando inventario...</p>
+        <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
 
-    <p v-else-if="repuestos.length === 0" class="stock-bajo">
-      ⚠️ No se han encontrado repuestos en el inventario. Añade uno nuevo para empezar.
-    </p>
+        <div class="vehicle-list" v-else>
+          <article v-for="r in repuestosFiltrados" :key="r.id" class="vehicle-card">
+            <div>
+              <div class="vehicle-title">
+                <strong>{{ r.nombre }}</strong>
+                <span
+                  class="badge"
+                  :class="
+                    r.stock === 0
+                      ? 'badge-pend'
+                      : r.stock <= (r.minimo || 0)
+                        ? 'badge-run'
+                        : 'badge-done'
+                  "
+                >
+                  {{ r.stock === 0 ? 'Sin stock' : r.stock <= (r.minimo || 0) ? 'Bajo' : 'Óptimo' }}
+                </span>
+              </div>
 
-    <table v-else class="repuestos-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nombre</th>
-          <th>Código</th>
-          <th>Fabricante</th>
-          <th>Stock</th>
-          <th>Precio</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="repuesto in repuestos" :key="repuesto.id">
-          <td>{{ repuesto.id }}</td>
-          <td>{{ repuesto.nombre }}</td>
-          <td>{{ repuesto.codigo }}</td>
-          <td>{{ repuesto.fabricante }}</td>
-          <td :class="{ 'stock-bajo': repuesto.stock < 10 }">{{ repuesto.stock }}</td>
+              <div class="v-meta">
+                <i class="bi bi-upc-scan"></i> {{ r.codigo || '—' }} ·
+                <i class="bi bi-building"></i> {{ r.fabricante || '—' }}
+              </div>
 
-          <td>${{ repuesto.precio ? parseFloat(repuesto.precio).toFixed(2) : '0.00' }}</td>
+              <div class="v-desc muted">
+                Stock: <strong>{{ r.stock }}</strong>
+                <span v-if="r.minimo !== undefined"> (mín: {{ r.minimo }})</span>
+                · Precio: <strong>\${{ formatPrice(r.precio) }}</strong>
+              </div>
+            </div>
 
-          <td>
-            <button @click="abrirEdicion(repuesto)" class="btn-action start">Editar</button>
+            <div class="v-actions">
+              <button class="btn-action start" @click="abrirEdicion(r)" title="Editar">
+                <i class="bi bi-pencil"></i> Editar
+              </button>
 
-            <button @click="eliminarRepuesto(repuesto.id)" class="btn-action delete">
-              Eliminar
+              <button class="btn-action delete" @click="eliminarRepuesto(r.id)" title="Eliminar">
+                <i class="bi bi-trash"></i> Eliminar
+              </button>
+            </div>
+          </article>
+
+          <div v-if="repuestosFiltrados.length === 0" class="empty">
+            <i class="bi bi-inbox"></i>
+            <div>No hay repuestos que coincidan con el filtro.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ASIDE: FORM NUEVO REPUESTO -->
+      <aside class="coches-aside">
+        <div class="card">
+          <h2 class="mb-2">Registrar nuevo repuesto</h2>
+          <form @submit.prevent="agregarRepuesto">
+            <div class="input-group">
+              <input type="text" v-model="nuevoRepuesto.nombre" placeholder="Nombre" required />
+              <input
+                type="text"
+                v-model="nuevoRepuesto.codigo"
+                placeholder="Código (Ej: FSA123)"
+                required
+              />
+            </div>
+            <div class="input-group">
+              <input type="text" v-model="nuevoRepuesto.fabricante" placeholder="Fabricante" />
+            </div>
+            <div class="input-group">
+              <input
+                type="number"
+                v-model.number="nuevoRepuesto.stock"
+                placeholder="Stock inicial"
+                required
+              />
+              <input
+                type="number"
+                step="0.01"
+                v-model.number="nuevoRepuesto.precio"
+                placeholder="Precio (Ej: 15.50)"
+                required
+              />
+            </div>
+            <button type="submit" class="btn-action primary-submit w-100">
+              <i class="bi bi-plus-lg me-1"></i> Añadir a inventario
             </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </form>
 
+          <p v-if="mensajeExito" class="exito mt-2">{{ mensajeExito }}</p>
+          <p v-if="errorCreacion" class="error mt-2">{{ errorCreacion }}</p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- MODAL EDICIÓN -->
     <div v-if="repuestoSeleccionado" class="modal-backdrop" @click.self="cancelarEdicion">
       <div class="modal-content">
-        <h2>Editar Repuesto: {{ repuestoSeleccionado.nombre }}</h2>
+        <h2>Editar: {{ repuestoSeleccionado.nombre }}</h2>
         <form @submit.prevent="guardarEdicion">
           <div class="input-group">
             <input
@@ -105,10 +169,10 @@
             />
           </div>
           <div class="modal-actions">
-            <button type="button" @click="cancelarEdicion" class="btn-action delete">
+            <button type="button" class="btn-action delete" @click="cancelarEdicion">
               Cancelar
             </button>
-            <button type="submit" class="btn-action complete">Guardar Cambios</button>
+            <button type="submit" class="btn-action complete">Guardar cambios</button>
           </div>
         </form>
       </div>
@@ -126,36 +190,70 @@ export default {
       cargando: true,
       errorLectura: null,
       errorCreacion: null,
-      API_URL: '/api/repuestos',
-      repuestoSeleccionado: null, // Controla el modal de edición
-
-      // Inicialización a NULL para que los placeholders se vean
-      nuevoRepuesto: { nombre: '', codigo: '', fabricante: '', stock: null, precio: null },
       mensajeExito: null,
+
+      API_URL: '/api/repuestos',
+      repuestoSeleccionado: null,
+
+      // formulario nuevo
+      nuevoRepuesto: { nombre: '', codigo: '', fabricante: '', stock: null, precio: null },
+
+      // filtros UI
+      query: '',
+      fStock: 'Todos',
     }
+  },
+  computed: {
+    repuestosFiltrados() {
+      let arr = [...this.repuestos]
+      const q = this.query.trim().toLowerCase()
+
+      // filtro por estado de stock
+      arr = arr.filter((r) => {
+        if (this.fStock === 'Todos') return true
+        if (this.fStock === 'Sin') return r.stock === 0
+        if (this.fStock === 'Bajo') return r.stock > 0 && r.stock <= (r.minimo || 0)
+        return true
+      })
+
+      // búsqueda
+      if (q) {
+        arr = arr.filter((r) =>
+          [r.nombre, r.codigo, r.fabricante].some((v) =>
+            String(v || '')
+              .toLowerCase()
+              .includes(q),
+          ),
+        )
+      }
+      return arr
+    },
   },
   mounted() {
     this.fetchData()
   },
   methods: {
-    // 1. OBTENER DATOS (GET)
+    formatPrice(v) {
+      const n = Number(v || 0)
+      return n.toFixed(2)
+    },
+
+    // GET
     async fetchData() {
       this.cargando = true
       this.errorLectura = null
-
       try {
-        const response = await axios.get(this.API_URL)
-        this.repuestos = response.data
+        const { data } = await axios.get(this.API_URL)
+        this.repuestos = data
       } catch (error) {
         this.errorLectura = 'No se pudo conectar a la API para cargar el inventario.'
         console.error('ERROR FETCH:', error)
       } finally {
-        // Garantiza que el spinner desaparezca siempre
         this.cargando = false
       }
     },
 
-    // 2. AGREGAR DATOS (POST)
+    // POST
     async agregarRepuesto() {
       this.errorCreacion = null
       this.mensajeExito = null
@@ -169,11 +267,9 @@ export default {
           this.errorCreacion = 'El Stock debe ser positivo y el Precio mayor a cero.'
           return
         }
-
-        const response = await axios.post(this.API_URL, this.nuevoRepuesto)
-
-        this.repuestos.unshift(response.data)
-        this.mensajeExito = `Repuesto '${response.data.nombre}' agregado al inventario.`
+        const { data } = await axios.post(this.API_URL, this.nuevoRepuesto)
+        this.repuestos.unshift(data)
+        this.mensajeExito = `Repuesto '${data.nombre}' agregado al inventario.`
         this.nuevoRepuesto = { nombre: '', codigo: '', fabricante: '', stock: null, precio: null }
       } catch (error) {
         this.errorCreacion = 'Error al agregar repuesto. Revise si el código ya existe.'
@@ -181,40 +277,28 @@ export default {
       }
     },
 
-    // 3. ABRIR EDICIÓN (Modal)
+    // Modal
     abrirEdicion(repuesto) {
-      // Crea una copia profunda del objeto para evitar modificar el original
       this.repuestoSeleccionado = { ...repuesto }
     },
-
-    // 4. CANCELAR EDICIÓN (Modal)
     cancelarEdicion() {
       this.repuestoSeleccionado = null
       this.errorCreacion = null
     },
 
-    // 5. GUARDAR EDICIÓN (PUT)
+    // PUT
     async guardarEdicion() {
       this.errorCreacion = null
-      const repuesto = this.repuestoSeleccionado
-
-      if (repuesto.stock < 0 || repuesto.precio <= 0) {
+      const r = this.repuestoSeleccionado
+      if (r.stock < 0 || r.precio <= 0) {
         this.errorCreacion = 'El Stock debe ser positivo y el Precio mayor a cero.'
         return
       }
-
       try {
-        const url = `${this.API_URL}/${repuesto.id}`
-        await axios.put(url, repuesto)
-
-        // Actualiza el objeto en la lista 'repuestos'
-        const index = this.repuestos.findIndex((r) => r.id === repuesto.id)
-        if (index !== -1) {
-          // Reemplaza el objeto antiguo con el editado (repuestoSeleccionado)
-          this.repuestos.splice(index, 1, repuesto)
-        }
-
-        this.mensajeExito = `Repuesto '${repuesto.nombre}' actualizado con éxito.`
+        await axios.put(`${this.API_URL}/${r.id}`, r)
+        const i = this.repuestos.findIndex((x) => x.id === r.id)
+        if (i !== -1) this.repuestos.splice(i, 1, r)
+        this.mensajeExito = `Repuesto '${r.nombre}' actualizado con éxito.`
         this.cancelarEdicion()
       } catch (error) {
         this.errorCreacion = 'Error al guardar los cambios.'
@@ -222,16 +306,11 @@ export default {
       }
     },
 
-    // 6. ELIMINAR REGISTRO (DELETE)
+    // DELETE
     async eliminarRepuesto(id) {
-      if (!confirm(`¿Está seguro de eliminar este repuesto del inventario?`)) {
-        return
-      }
-
+      if (!confirm(`¿Está seguro de eliminar este repuesto del inventario?`)) return
       try {
-        const url = `${this.API_URL}/${id}`
-        await axios.delete(url)
-
+        await axios.delete(`${this.API_URL}/${id}`)
         this.repuestos = this.repuestos.filter((r) => r.id !== id)
         this.mensajeExito = `Repuesto eliminado correctamente.`
         this.errorLectura = null
@@ -243,113 +322,46 @@ export default {
   },
 }
 </script>
+
 <style scoped>
-/* Los estilos se mantienen igual */
+/* Reusa estilos globales (hero, filtros, grid, cards) de main.css */
 
-/* Contenedor principal */
-.repuestos-view {
-  padding: 20px;
-}
-
-/* --- Estilos de Tabla --- */
-.repuestos-table {
-  width: 100%;
-  margin-top: 20px;
-  border-collapse: collapse;
-}
-.repuestos-table th {
-  background-color: #3b5998; /* Color de Inventario */
-  color: white;
-  padding: 12px 15px; /* Añadido padding para consistencia */
-}
-.repuestos-table td {
-  padding: 12px;
-  border-bottom: 1px solid #444;
-}
-
-/* --- Estilos de Formulario --- */
-.formulario-agregar {
-  background-color: #1e2a38;
-  padding: 25px;
-  border-radius: 8px;
-  margin-bottom: 30px;
-}
-.input-group {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.input-group input {
-  flex: 1;
-}
-
-/* --- Botones y Estados --- */
-.btn-action {
-  padding: 5px 10px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  margin: 2px;
-  transition: background-color 0.3s;
-  color: white;
-}
-.btn-action.delete {
-  background-color: #e74c3c;
-}
-.btn-action.start {
-  background-color: #f39c12;
-}
-.stock-bajo {
-  color: #f39c12;
-  font-weight: bold;
-}
-.error {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-.exito {
-  color: #42b983;
-  font-weight: bold;
-}
-
-/* --- ESTILOS PARA EL MODAL DE EDICIÓN --- */
+/* Ajustes mínimos del modal con tokens globales */
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro semitransparente */
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000; /* Asegura que esté por encima de todo */
+  z-index: 1000;
 }
-
 .modal-content {
-  background-color: #1e2a38;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
+  background-color: var(--surface);
+  padding: 24px;
+  border-radius: var(--radius);
   width: 90%;
-  max-width: 500px;
+  max-width: 520px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
 }
-
 .modal-content h2 {
-  color: #42b983;
-  margin-bottom: 20px;
+  color: var(--text);
+  margin-bottom: 16px;
 }
-
+.modal-content input {
+  width: 100%;
+  margin-bottom: 12px;
+  background-color: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 20px;
-}
-/* Asegura que los campos dentro del modal ocupen el 100% */
-.modal-content input {
-  width: 100%;
-  margin-bottom: 15px;
+  margin-top: 12px;
 }
 </style>

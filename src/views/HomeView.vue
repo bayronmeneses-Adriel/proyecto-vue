@@ -1,15 +1,45 @@
 <template>
   <div class="dashboard">
-    <h1 class="titulo">Panel de Control del Taller Mecánico &nbsp; 🛠️</h1>
-    <p class="subtitulo">Resumen Rápido del Taller</p>
+    <!-- HERO -->
+    <section class="coches-hero">
+      <div class="hero-row">
+        <div>
+          <h1>Panel de Control del Taller <span>🛠️</span></h1>
+          <div class="coches-kpi mt-1">
+            <i class="bi bi-speedometer2"></i>
+            {{ metricas.vehiculosEnTaller ?? 0 }} en taller
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button class="btn-action start" @click="refrescar">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
+          </button>
+        </div>
+      </div>
+    </section>
 
-    <div v-if="stockAlertas && stockAlertas.count > 0" class="alerta-inventario">
-      ¡INVENTARIO BAJO! Hay {{ stockAlertas.count }} repuestos con menos de 10 unidades.
+    <!-- ALERTA DE INVENTARIO (si aplica) -->
+    <div
+      v-if="stockAlertas && stockAlertas.count > 0"
+      class="alerta card round"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="alerta-row">
+        <span class="badge badge-peligro">
+          <i class="bi bi-exclamation-triangle"></i> Inventario bajo
+        </span>
+        <span class="alerta-text">
+          Hay <strong>{{ stockAlertas.count }}</strong> repuestos con menos de 10 unidades.
+        </span>
+      </div>
     </div>
 
-    <div v-if="cargando" class="cargando">Cargando métricas...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
+    <!-- ESTADOS DE CARGA/ERROR -->
+    <div v-if="cargando" class="muted center">Cargando métricas…</div>
+    <div v-else-if="error" class="error center">{{ error }}</div>
 
+    <!-- MÉTRICAS -->
     <div v-else class="metricas">
       <div :class="['card', 'card-' + getVehiculosColor()]">
         <h2>Vehículos en Taller</h2>
@@ -19,22 +49,24 @@
 
       <div class="card">
         <h2>Mecánicos Disponibles</h2>
-        <p class="numero">{{ metricas.mecanicosDisponibles }}</p>
+        <p class="numero numero-ok">{{ metricas.mecanicosDisponibles }}</p>
         <small>Mecánicos listos para un nuevo trabajo</small>
       </div>
 
       <div class="card">
         <h2>Servicios Pendientes</h2>
-        <p class="numero">{{ metricas.serviciosPendientes }}</p>
+        <p class="numero numero-warn">{{ metricas.serviciosPendientes }}</p>
         <small>Tareas sin asignar o en espera</small>
       </div>
     </div>
 
+    <!-- DETALLE ALERTAS DE STOCK -->
     <div v-if="stockAlertas && stockAlertas.count > 0" class="card card-detalle-alerta">
-      <h3>Detalle de Inventario Crítico (Bajo Stock)</h3>
+      <h3 class="mb-1">Detalle de Inventario Crítico</h3>
       <ul>
         <li v-for="item in stockAlertas.items" :key="item.nombre">
-          {{ item.nombre }} (Código: {{ item.codigo }}) - Quedan: {{ item.stock }}
+          <span class="badge badge-run">{{ item.codigo || '—' }}</span>
+          <strong>{{ item.nombre }}</strong> — quedan <strong>{{ item.stock }}</strong>
         </li>
       </ul>
     </div>
@@ -43,7 +75,6 @@
 
 <script>
 import axios from 'axios'
-
 export default {
   data() {
     return {
@@ -51,34 +82,39 @@ export default {
       cargando: true,
       error: null,
       API_URL: '/api/metricas',
-      API_ALERTAS_STOCK: '/api/alertas/stock', // Nuevo endpoint
-      stockAlertas: null, // Nuevo estado para alertas de inventario
+      API_ALERTAS_STOCK: '/api/alertas/stock',
+      stockAlertas: null,
     }
   },
 
-  // HOOK DE NAVEGACIÓN
+  // HOOK DE NAVEGACIÓN: Fuerza la recarga de datos al entrar a la vista
   beforeRouteEnter(to, from, next) {
+    // La función 'next' accede a la instancia del componente (vm)
     next((vm) => {
-      vm.fetchData()
-      vm.fetchAlertasStock() // Cargar alertas al entrar
+      vm.refrescar()
     })
   },
 
   mounted() {
-    this.fetchData()
-    this.fetchAlertasStock() // Cargar alertas si es recarga completa (F5)
+    // También se llama en la carga inicial (F5)
+    this.refrescar()
   },
 
   methods: {
-    // FUNCIÓN DE LECTURA PRINCIPAL (GET /api/metricas)
+    // FUNCIÓN UNIFICADA PARA RECARGA DE AMBOS ENDPOINTS
+    refrescar() {
+      this.fetchData()
+      this.fetchAlertasStock()
+    },
+
+    // GET /metricas (Datos principales del Dashboard)
     fetchData() {
       this.cargando = true
       this.error = null
-
       axios
         .get(this.API_URL)
-        .then((response) => {
-          this.metricas = response.data
+        .then((res) => {
+          this.metricas = res.data || {}
           this.cargando = false
         })
         .catch(() => {
@@ -87,114 +123,117 @@ export default {
         })
     },
 
-    // NUEVA FUNCIÓN: Obtener Alertas de Stock
+    // GET /alertas/stock (Alerta de Inventario)
     fetchAlertasStock() {
       axios
         .get(this.API_ALERTAS_STOCK)
-        .then((response) => {
-          this.stockAlertas = response.data
-        })
-        .catch((error) => {
-          console.error('No se pudieron cargar las alertas de stock:', error)
-        })
+        .then((res) => (this.stockAlertas = res.data))
+        .catch((e) => console.error('No se pudieron cargar las alertas de stock:', e))
     },
 
-    // NUEVA FUNCIÓN: Lógica para colores de la tarjeta de vehículos
+    // Lógica para colores de la tarjeta de vehículos
     getVehiculosColor() {
-      const count = this.metricas.vehiculosEnTaller
-      if (count > 5) return 'saturado' // Alto número de vehículos
-      if (count <= 1) return 'bajo' // Poca actividad
-      return 'normal'
+      const count = Number(this.metricas.vehiculosEnTaller || 0)
+      if (count > 5) return 'saturado' // Rojo
+      if (count <= 1) return 'bajo' // Naranja
+      return 'normal' // Verde
     },
   },
 }
 </script>
 
 <style scoped>
+/* Contenedor ya está alineado con main.css por .dashboard */
 .dashboard {
-  padding: 30px;
   max-width: 1200px;
   margin: 0 auto;
-}
-.titulo {
-  font-size: 2.5em;
-  color: #42b983;
-  margin-bottom: 10px;
-}
-.subtitulo {
-  font-size: 1.2em;
-  color: #aaa;
-  margin-bottom: 30px;
-}
-.metricas {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-.card {
-  flex: 1 1 300px;
-  background-color: #2c3e50;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-  min-width: 250px;
-}
-.card h2 {
-  font-size: 1.4em;
-  margin-bottom: 10px;
-  color: #fff;
-}
-.numero {
-  font-size: 3em;
-  font-weight: bold;
-  color: #42b983;
-  margin: 5px 0;
-}
-.cargando,
-.error {
-  text-align: center;
-  padding: 20px;
-  font-size: 1.2em;
-}
-.error {
-  color: #ff6b6b;
-}
-.alerta-inventario {
-  background-color: #ff6b6b; /* Rojo fuerte */
-  color: white;
-  padding: 15px;
-  margin-bottom: 25px;
-  border-radius: 5px;
-  font-weight: bold;
-  text-align: center;
+  padding: 32px 16px;
 }
 
-.card-detalle-alerta {
-  margin-top: 30px;
-  background-color: #1e2a38;
-  border: 1px solid #ff6b6b;
+/* Alerta superior */
+.alerta {
+  border: 1px solid var(--danger);
+  background: var(--danger-10);
+  box-shadow: var(--shadow-sm);
+  margin: 12px 0 20px;
 }
-.card-detalle-alerta h3 {
-  color: #ff6b6b;
-  margin-bottom: 15px;
+.alerta-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.alerta-text {
+  color: var(--text);
+}
+.badge-peligro {
+  background: var(--danger-10);
+  color: var(--danger);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* Grid de métricas */
+.metricas {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (min-width: 900px) {
+  .metricas {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Card numbers */
+.numero {
+  font-size: 40px;
+  line-height: 1;
+  font-weight: 800;
+  margin: 6px 0 2px;
+}
+.numero-ok {
+  color: var(--success);
+}
+.numero-warn {
+  color: var(--warning);
+}
+
+/* Reglas de color por estado para la 1a card (vehículos) */
+.card-saturado .numero {
+  color: var(--danger);
+}
+.card-normal .numero {
+  color: var(--success);
+}
+.card-bajo .numero {
+  color: var(--warning);
+}
+
+/* Detalle de alerta */
+.card-detalle-alerta {
+  margin-top: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 .card-detalle-alerta ul {
   list-style: none;
   padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
 }
 .card-detalle-alerta li {
-  margin-bottom: 5px;
-  font-size: 0.95em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Indicadores de Capacidad en Tarjetas */
-.card-saturado .numero {
-  color: #ff6b6b;
-} /* Rojo para vehículos > 10 */
-.card-normal .numero {
-  color: #42b983;
-} /* Verde normal */
-.card-bajo .numero {
-  color: #f39c12;
-} /* Naranja para poca actividad (<= 1) */
+/* Utilidades locales */
+.center {
+  text-align: center;
+}
 </style>

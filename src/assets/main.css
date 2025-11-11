@@ -1,168 +1,547 @@
-/* src/assets/main.css (DISEÑO VIBRANTE Y PROFESIONAL) */
+/* src/assets/main.css (DISEÑO MINIMALISTA FINAL - MODO CLARO + UPGRADE) */
 
-/* Colores Base */
+/* =========================
+   COLORES BASE Y TOKENS
+   ========================= */
 :root {
-  /* FONDOS */
-  --color-background: #0d1117; /* Azul Oscuro Profundo (Github Dark) */
-  --color-text: #e6edf3; /* Texto Blanco Suave */
-  --color-card: #161b22; /* Fondo de Tarjeta/Formulario */
-  --color-darker-card: #010409; /* Filas Pares (Más Oscuro) */
+  /* NEUTRALES */
+  --bg: #dfdfdf94; /* Fondo app */
+  --surface: #ffffff; /* Cards / Fondo Principal */
+  --surface-2: #f9fafb; /* Inputs / Filas Pares */
+  --border: #8d8989; /* Bordes y líneas divisorias */
+  --text: #0f172a; /* Texto oscuro principal */
+  --text-muted: #000; /* Texto secundario/placeholder */
 
   /* ACENTOS Y ESTADOS */
-  --color-vue: #20c997; /* Verde Eléctrico/Teal (Acento principal) */
-  --color-warning: #ffc107; /* Amarillo/Oro (Pendiente) */
-  --color-danger: #dc3545; /* Rojo Vivo (Eliminar) */
-  --color-info: #007bff; /* Azul Claro (Reparación/Completo) */
+  --primary: #2563eb; /* Azul minimal (marca) */
+  --primary-hover: #1d4ed8; /* Hover */
+  --success: #16a34a; /* Verde */
+  --warning: #f59e0b; /* Amarillo/Naranja */
+  --danger: #dc2626; /* Rojo */
+  --info: #3b82f6; /* Azul claro */
+
+  /* TOKENS EXTRA */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
+
+  /* Tintes suaves para chips/badges */
+  --primary-10: color-mix(in srgb, var(--primary) 10%, #fff);
+  --success-10: color-mix(in srgb, var(--success) 12%, #fff);
+  --warning-10: color-mix(in srgb, var(--warning) 14%, #fff);
+  --danger-10: color-mix(in srgb, var(--danger) 12%, #fff);
+  --info-10: color-mix(in srgb, var(--info) 12%, #fff);
 }
 
-/* Base global */
+/* =================
+   BASE GLOBAL
+   ================= */
 body {
-  background: var(--color-background);
-  color: var(--color-text);
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
-  transition:
-    color 0.5s,
-    background-color 0.5s;
-  line-height: 1.6;
-  font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', sans-serif;
-  font-size: 16px;
-  text-rendering: optimizeLegibility;
+  line-height: 1.5;
+  font-family: Inter, 'SF Pro', system-ui, sans-serif;
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Estilos para Tablas */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  /* Eliminar la sombra oscura y usar un borde sutil */
-  box-shadow: 0 0 0 1px #21262d;
+h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
 }
-
-thead th {
-  background-color: var(--color-vue); /* Verde Eléctrico */
-  color: var(--color-darker-card); /* Texto más oscuro para contraste */
-  padding: 15px;
-  text-align: left;
-  border-bottom: 2px solid #1c9e78;
+h2 {
+  font-size: 20px;
   font-weight: 600;
-  text-transform: uppercase;
+  color: var(--text);
+}
+p {
+  color: var(--text);
+}
+small {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
-tbody tr {
-  background-color: var(--color-card);
+/* =============================
+   LAYOUT GLOBAL Y NAVEGACIÓN
+   ============================= */
+.dashboard,
+.coches-view,
+.mecanicos-view,
+.clientes-view,
+.inventario-view,
+.vista-rapida-view,
+.registro-rapido-view {
+  max-width: 12000px;
+  margin: 0 auto;
+  padding: 32px 16px;
 }
 
-tbody tr:nth-child(even) {
-  background-color: var(--color-darker-card);
+header {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
-tbody tr:hover {
-  background-color: #21262d; /* Hover con un color más oscuro aún */
+nav {
+  padding: 10px 0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+nav a {
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+nav a.router-link-exact-active {
+  background-color: var(--primary);
+  color: #fff !important;
+  box-shadow: var(--shadow-sm);
 }
 
-td {
-  padding: 12px;
-  border-bottom: 1px solid #21262d;
+/* ============================
+   TARJETAS / FORMULARIOS / INPUTS
+   ============================ */
+.formulario-agregar,
+.card {
+  background-color: var(--surface);
+  padding: 24px;
+  border-radius: var(--radius);
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
-/* Estilos para Formularios e Inputs */
-.formulario-agregar {
-  background-color: var(--color-card);
-  padding: 30px; /* Más espacio */
-  border-radius: 8px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); /* Sombra más pronunciada */
-  border: 1px solid #21262d;
+.input-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-/* Estilo unificado para input, textarea y select */
+/* Inputs unificados */
 .formulario-agregar input,
 .formulario-agregar textarea,
 .formulario-agregar select {
-  padding: 12px;
-  margin-right: 10px;
-  border: 1px solid #484f58; /* Borde gris sutil */
-  border-radius: 6px; /* Bordes más suaves */
-  background-color: var(--color-darker-card);
-  color: var(--color-text);
-  transition: border-color 0.3s;
-  box-sizing: border-box;
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface-2);
+  color: var(--text);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background-color 0.2s;
 }
 
 .formulario-agregar input:focus,
 .formulario-agregar select:focus,
 .formulario-agregar textarea:focus {
-  border-color: var(--color-vue); /* Borde vibrante al enfocar */
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--primary) 25%, transparent);
   outline: none;
-  box-shadow: 0 0 0 1px var(--color-vue); /* Sombra suave para el enfoque */
 }
 
-.formulario-agregar button {
-  background-color: var(--color-vue);
-  cursor: pointer;
-  font-weight: 600;
-  color: var(--color-darker-card); /* Texto oscuro en el botón verde para contraste */
-  padding: 12px 20px;
-  border: none;
-  border-radius: 6px;
-  transition:
-    background-color 0.3s,
-    transform 0.1s;
-}
-.formulario-agregar button:hover {
-  background-color: #1c9e78; /* Oscurecer ligeramente al pasar el ratón */
-  transform: translateY(-2px); /* Pequeña animación */
+/* =================
+   TABLAS (GENÉRICO)
+   ================= */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
-/* Estilos de Estado y Advertencia */
-.stock-bajo,
-.pendiente-estado {
-  color: var(--color-warning); /* Amarillo/Oro */
-  font-weight: bold;
-}
-
-.reparacion-estado {
-  color: var(--color-info); /* Azul */
-  font-weight: bold;
-}
-
-.listo-estado {
-  color: var(--color-vue); /* Verde Eléctrico */
-  font-weight: bold;
-}
-
-.error {
-  color: var(--color-danger); /* Rojo Vivo */
-  font-weight: bold;
-}
-
-/* Estilos de Botones de Acción Global */
-.btn-action {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  margin: 2px;
-  transition:
-    background-color 0.3s,
-    transform 0.1s;
+thead th {
+  background-color: var(--primary);
   color: white;
+  padding: 16px 12px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--primary-hover);
+}
+
+tbody tr {
+  background-color: var(--surface);
+}
+tbody tr:hover {
+  background-color: var(--surface-2);
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ============================
+   BOTONES / ACCIONES GENÉRICOS
+   ============================ */
+.btn-action {
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  transition:
+    transform 0.15s ease,
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+  white-space: nowrap;
 }
 .btn-action:hover {
   transform: translateY(-1px);
 }
 
-/* Colores Específicos para Acciones (CRUD) */
+/* Primario (submit) */
+.btn-action.primary-submit,
+.formulario-agregar button {
+  background-color: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.btn-action.primary-submit:hover,
+.formulario-agregar button:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Secundario (ghost) */
 .btn-action.start {
-  background-color: var(--color-warning); /* Naranja/Amarillo para Iniciar */
-  color: var(--color-darker-card);
+  background-color: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
 }
+.btn-action.start:hover {
+  background-color: #f3f4f6;
+  color: var(--text);
+}
+
+/* Completar */
 .btn-action.complete {
-  background-color: var(--color-info); /* Azul para Finalizar */
+  background-color: var(--info);
+  color: white;
 }
-.btn-action.delete {
-  background-color: var(--color-danger); /* Rojo para Eliminar */
+
+/* Estados de chips (compat con clases existentes) */
+.pendiente-estado {
+  background-color: var(--warning-10);
+  color: var(--warning);
+  border: 1px solid #fcd34d;
+}
+.reparacion-estado {
+  background-color: var(--info-10);
+  color: var(--info);
+  border: 1px solid #93c5fd;
+}
+.listo-estado {
+  background-color: var(--success-10);
+  color: var(--success);
+  border: 1px solid #6ee7b7;
+}
+.error {
+  color: var(--danger);
+}
+.exito {
+  color: var(--success);
+}
+
+/* =========================================
+   BLOQUES REUTILIZABLES (Hero / Filtros / Cards)
+   ========================================= */
+
+/* Hero superior con KPI (úsalo en todas las vistas) */
+.coches-hero {
+  background: linear-gradient(180deg, #f4f7ff, transparent);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding: 18px 0;
+}
+.coches-hero h1 {
+  margin: 0;
+}
+.coches-kpi {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: var(--primary-10);
+  color: var(--primary);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 800;
+}
+.hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hero-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Barra de filtros rápida */
+.coches-filtros {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.coches-filtros .search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+.coches-filtros .search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  color: var(--text);
+}
+.filter-pill {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+.filter-pill:hover {
+  background: #f3f4f6;
+}
+.filter-pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Grid 2 columnas (listado + aside) */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 992px) {
+  .grid-2 {
+    grid-template-columns: 1.6fr 0.9fr;
+  }
+}
+
+/* Listado como grid de cards (reutilizable) */
+.vehicle-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 992px) {
+  .vehicle-list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Card base para items (vehículos, clientes, mecánicos, repuestos) */
+.vehicle-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s;
+}
+.vehicle-card:hover {
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.vehicle-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.plate {
+  font-family: ui-monospace, Menlo, monospace;
+  background: var(--info-10);
+  color: var(--info);
+  border-radius: 10px;
+  padding: 0.2rem 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.v-meta {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+.v-desc {
+  font-size: 0.92rem;
+}
+
+/* Chips/badges de estado */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.badge-pend {
+  background: var(--warning-10);
+  color: var(--warning);
+}
+.badge-run {
+  background: var(--info-10);
+  color: var(--info);
+}
+.badge-done {
+  background: var(--success-10);
+  color: var(--success);
+}
+.badge-muted {
+  background: #eef2f7;
+  color: var(--text-muted);
+}
+
+/* Acciones compactas */
+.v-actions {
+  display: flex;
+  gap: 8px; /* Espaciado uniforme */
+  align-items: center;
+}
+.v-actions .btn-action:hover {
+  background: #f3f4f6;
+}
+.v-actions .btn-action.start {
+  background-color: var(--warning); /* Naranja/Advertencia */
+  color: var(--text);
+}
+
+.v-actions .btn-action.delete {
+  background-color: var(--danger); /* Rojo */
+  color: rgb(0, 0, 0);
+}
+.v-actions .btn-action.complete {
+  background-color: var(--info); /* Azul */
+  color: white;
+}
+/* Aside sticky (form) */
+.coches-aside {
+  position: sticky;
+  top: 16px;
+  height: max-content;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+.step strong {
+  color: var(--text);
+}
+
+/* Fila de inventario/consumo */
+.inv-row {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 0.5rem;
+}
+.inv-row .qty-group {
+  display: flex;
+}
+.inv-row .qty-group input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.inv-row .qty-group .btn-action {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Estado vacío */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+/* ==========================
+   UTILIDADES PEQUEÑAS
+   ========================== */
+.mt-1 {
+  margin-top: 4px;
+}
+.mt-2 {
+  margin-top: 8px;
+}
+.mb-1 {
+  margin-bottom: 4px;
+}
+.mb-2 {
+  margin-bottom: 8px;
+}
+.w-100 {
+  width: 100%;
+}
+.me-1 {
+  margin-right: 6px;
+}
+.muted {
+  color: var(--text-muted);
+}
+.hr-soft {
+  border: 0;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.8;
+  margin: 12px 0;
+}
+.round {
+  border-radius: var(--radius);
+}
+.round-sm {
+  border-radius: var(--radius-sm);
+}
+.shadow {
+  box-shadow: var(--shadow);
+}
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
 }

@@ -1,63 +1,141 @@
 <template>
   <div class="mecanicos-view">
-    <h1>Personal del Taller 🔧</h1>
+    <!-- HERO -->
+    <section class="coches-hero">
+      <div class="hero-row">
+        <div>
+          <h1>Personal del Taller <span>🔧</span></h1>
+          <div class="coches-kpi">
+            <i class="bi bi-person-gear"></i>
+            {{ disponibles.length }} disponibles de {{ mecanicos.length }}
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button class="btn-action start" @click="fetchData">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refrescar
+          </button>
+        </div>
+      </div>
+    </section>
 
-    <div class="formulario-agregar">
-      <h2>Contratar Nuevo Mecánico</h2>
-      <form @submit.prevent="agregarMecanico">
-        <input type="text" v-model="nuevoMecanico.nombre" placeholder="Nombre Completo" required />
+    <!-- FILTROS -->
+    <div class="coches-filtros">
+      <div class="search">
+        <i class="bi bi-search"></i>
         <input
+          v-model="query"
           type="text"
-          v-model="nuevoMecanico.especialidad"
-          placeholder="Especialidad (Ej: Motores)"
-          required
+          placeholder="Buscar por nombre o especialidad…"
+          aria-label="Buscar mecánico"
         />
-        <button type="submit">Añadir a la Plantilla</button>
-      </form>
-      <p v-if="mensajeExito" class="exito">{{ mensajeExito }}</p>
-      <p v-if="errorCreacion" class="error">{{ errorCreacion }}</p>
+      </div>
+
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Todos' }"
+        @click="fEstado = 'Todos'"
+      >
+        Todos
+      </button>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Disponible' }"
+        @click="fEstado = 'Disponible'"
+      >
+        Disponibles
+      </button>
+      <button
+        class="filter-pill"
+        :class="{ active: fEstado === 'Ocupado' }"
+        @click="fEstado = 'Ocupado'"
+      >
+        Ocupados
+      </button>
     </div>
 
-    <p v-if="cargando">Cargando personal desde la base de datos...</p>
-    <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
-    <p v-else>Mecánicos disponibles: {{ disponibles.length }} de {{ mecanicos.length }}</p>
+    <!-- CONTENIDO: LISTA + ASIDE -->
+    <div class="grid-2">
+      <!-- LISTA EN CARDS -->
+      <section>
+        <p v-if="cargando">Cargando personal desde la base de datos…</p>
+        <p v-else-if="errorLectura" class="error">{{ errorLectura }}</p>
 
-    <table class="mecanicos-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nombre</th>
-          <th>Especialidad</th>
-          <th>Disponibilidad</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="mecanico in mecanicos" :key="mecanico.id">
-          <td>{{ mecanico.id }}</td>
-          <td>{{ mecanico.nombre }}</td>
-          <td>{{ mecanico.especialidad }}</td>
-          <td>
-            <span :class="{ disponible: mecanico.disponible, ocupado: !mecanico.disponible }">
-              {{ mecanico.disponible ? 'Disponible' : 'Ocupado' }}
-            </span>
-          </td>
+        <div class="vehicle-list" v-else>
+          <article v-for="m in mecanicosFiltrados" :key="m.id" class="vehicle-card">
+            <div>
+              <div class="vehicle-title">
+                <strong>{{ m.nombre }}</strong>
+                <span class="badge" :class="m.disponible ? 'badge-done' : 'badge-run'">
+                  {{ m.disponible ? 'Disponible' : 'Ocupado' }}
+                </span>
+              </div>
 
-          <td>
-            <button
-              @click="toggleDisponibilidad(mecanico)"
-              :class="['btn-action', mecanico.disponible ? 'complete' : 'start']"
-            >
-              {{ mecanico.disponible ? 'Marcar Ocupado' : 'Marcar Libre' }}
+              <div class="v-meta">
+                <i class="bi bi-tools"></i> {{ m.especialidad || 'General' }}
+                <span v-if="Number(m.ordenesActivas) >= 0">
+                  · <i class="bi bi-briefcase"></i> OT activas:
+                  <strong>{{ m.ordenesActivas || 0 }}</strong>
+                </span>
+              </div>
+
+              <div class="v-desc muted">
+                {{ m.nota || '—' }}
+              </div>
+            </div>
+
+            <div class="v-actions">
+              <button
+                class="btn-action start"
+                @click="toggleDisponibilidad(m)"
+                :title="m.disponible ? 'Marcar Ocupado' : 'Marcar Disponible'"
+              >
+                {{ m.disponible ? 'Marcar Ocupado' : 'Marcar Disponible' }}
+              </button>
+
+              <button class="btn-action delete" @click="eliminarMecanico(m.id)" title="Eliminar">
+                Eliminar <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </article>
+
+          <div v-if="mecanicosFiltrados.length === 0" class="empty">
+            <i class="bi bi-inbox"></i>
+            <div>No hay mecánicos que coincidan con el filtro.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ASIDE: FORMULARIO NUEVO MECÁNICO -->
+      <aside class="coches-aside">
+        <div class="card">
+          <h2 class="mb-2">Contratar nuevo mecánico</h2>
+
+          <form @submit.prevent="agregarMecanico">
+            <div class="input-group">
+              <input
+                type="text"
+                v-model="nuevoMecanico.nombre"
+                placeholder="Nombre completo"
+                required
+              />
+              <input
+                type="text"
+                v-model="nuevoMecanico.especialidad"
+                placeholder="Especialidad (Ej.: Motores)"
+                required
+              />
+            </div>
+
+            <button type="submit" class="btn-action primary-submit w-100">
+              <i class="bi bi-person-plus me-1"></i> Añadir a la plantilla
             </button>
+          </form>
 
-            <button @click="eliminarMecanico(mecanico.id)" class="btn-action delete">
-              Eliminar
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          <p v-if="mensajeExito" class="exito mt-2">{{ mensajeExito }}</p>
+          <p v-if="errorCreacion" class="error mt-2">{{ errorCreacion }}</p>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -71,47 +149,65 @@ export default {
       cargando: true,
       errorLectura: null,
       errorCreacion: null,
-      API_URL: '/api/mecanicos', // Endpoint base
+      API_URL: '/api/mecanicos',
+
+      // formulario
       nuevoMecanico: { nombre: '', especialidad: '', disponible: true },
       mensajeExito: null,
+
+      // filtros UI
+      query: '',
+      fEstado: 'Todos',
     }
-  },
-  mounted() {
-    this.fetchData()
   },
   computed: {
     disponibles() {
       return this.mecanicos.filter((m) => m.disponible)
     },
+    mecanicosFiltrados() {
+      const q = this.query.trim().toLowerCase()
+      return this.mecanicos
+        .filter((m) => {
+          if (this.fEstado === 'Todos') return true
+          if (this.fEstado === 'Disponible') return !!m.disponible
+          if (this.fEstado === 'Ocupado') return !m.disponible
+          return true
+        })
+        .filter((m) => {
+          if (!q) return true
+          return [m.nombre, m.especialidad].some((v) =>
+            String(v || '')
+              .toLowerCase()
+              .includes(q),
+          )
+        })
+    },
+  },
+  mounted() {
+    this.fetchData()
   },
   methods: {
-    // 1. OBTENER DATOS (GET)
     async fetchData() {
-      this.cargando = true // 1. Empieza cargando
+      this.cargando = true
       this.errorLectura = null
-
       try {
-        const response = await axios.get(this.API_URL)
-        this.mecanicos = response.data // Éxito: Guardamos los datos
+        const { data } = await axios.get(this.API_URL)
+        this.mecanicos = data
       } catch (error) {
-        // Fallo: Activamos el mensaje de error
         this.errorLectura = 'Error al cargar la lista de mecánicos.'
         console.error('ERROR AL CARGAR MECÁNICOS:', error)
       } finally {
-        // 2. ¡SIEMPRE SE EJECUTA! Quita el bloqueo y permite renderizar la tabla o el error.
         this.cargando = false
       }
     },
 
-    // 2. AGREGAR DATOS (POST) - Se mantiene igual
     async agregarMecanico() {
       this.errorCreacion = null
       this.mensajeExito = null
       try {
-        const response = await axios.post(this.API_URL, this.nuevoMecanico)
-
-        this.mecanicos.unshift(response.data)
-        this.mensajeExito = `¡${response.data.nombre} contratado con éxito!`
+        const { data } = await axios.post(this.API_URL, this.nuevoMecanico)
+        this.mecanicos.unshift(data)
+        this.mensajeExito = `¡${data.nombre} contratado con éxito!`
         this.nuevoMecanico = { nombre: '', especialidad: '', disponible: true }
       } catch (error) {
         this.errorCreacion = 'Error al contratar. Revisa la conexión al Backend.'
@@ -119,42 +215,27 @@ export default {
       }
     },
 
-    // 3. ACTUALIZAR DISPONIBILIDAD (PUT) - NUEVO
-    async toggleDisponibilidad(mecanico) {
-      const nuevoEstado = !mecanico.disponible
-      const url = `${this.API_URL}/${mecanico.id}`
-
+    async toggleDisponibilidad(m) {
+      const nuevoEstado = !m.disponible
       try {
-        const data = {
-          nombre: mecanico.nombre, // Necesario para el PUT
-          especialidad: mecanico.especialidad, // Necesario para el PUT
+        await axios.put(`${this.API_URL}/${m.id}`, {
+          nombre: m.nombre,
+          especialidad: m.especialidad,
           disponible: nuevoEstado,
-        }
-
-        await axios.put(url, data)
-
-        // Actualiza el estado localmente para reflejar el cambio en la tabla
-        mecanico.disponible = nuevoEstado
-        this.mensajeExito = `${mecanico.nombre} marcado como ${nuevoEstado ? 'DISPONIBLE' : 'OCUPADO'}.`
+        })
+        m.disponible = nuevoEstado
+        this.mensajeExito = `${m.nombre} marcado como ${nuevoEstado ? 'DISPONIBLE' : 'OCUPADO'}.`
       } catch (error) {
         this.errorLectura = 'No se pudo actualizar la disponibilidad.'
         console.error('Error al actualizar disponibilidad:', error)
       }
     },
 
-    // 4. ELIMINAR REGISTRO (DELETE) - NUEVO
     async eliminarMecanico(id) {
-      if (
-        !confirm(`¿Está seguro de despedir al mecánico con ID ${id}? Esta acción es permanente.`)
-      ) {
+      if (!confirm(`¿Está seguro de despedir al mecánico con ID ${id}? Esta acción es permanente.`))
         return
-      }
-
       try {
-        const url = `${this.API_URL}/${id}`
-        await axios.delete(url)
-
-        // Filtra el registro eliminado de la lista local
+        await axios.delete(`${this.API_URL}/${id}`)
         this.mecanicos = this.mecanicos.filter((m) => m.id !== id)
         this.mensajeExito = `Mecánico con ID ${id} eliminado correctamente.`
       } catch (error) {
@@ -167,112 +248,13 @@ export default {
 </script>
 
 <style scoped>
-/* Estilos generales */
+/* Reusa estilos globales del main.css: hero, filtros, grid, cards */
+
+/* Ajuste mínimo de contenedor (ya tienes padding global por vista) */
 .mecanicos-view {
-  padding: 20px;
-}
-.error {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-.exito {
-  color: #42b983;
-  font-weight: bold;
-  margin-top: 10px;
+  max-width: 12000px;
+  margin: 0 auto;
 }
 
-/* Estilos de la tabla de mecánicos */
-.mecanicos-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-}
-.mecanicos-table th,
-.mecanicos-table td {
-  padding: 12px 15px;
-  text-align: left;
-  border-bottom: 1px solid #333;
-}
-.mecanicos-table th {
-  background-color: #28a745; /* Un verde más oscuro y sólido para encabezados */
-  color: white;
-  font-weight: bold;
-}
-.mecanicos-table tbody tr:hover {
-  background-color: #2c3e50; /* Un sutil cambio de fondo al pasar el ratón */
-}
-
-/* Colores de disponibilidad */
-.disponible {
-  color: #42b983; /* Verde Vue */
-  font-weight: bold;
-}
-.ocupado {
-  color: #ff6b6b; /* Rojo */
-  font-weight: bold;
-}
-
-/* Estilos de formulario (ya definidos en main.css o aquí si es necesario) */
-.formulario-agregar {
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #333;
-  border-radius: 8px;
-}
-.formulario-agregar input {
-  margin-right: 10px;
-  padding: 10px;
-  border: 1px solid #444;
-  background-color: #2c3e50;
-  color: white;
-  border-radius: 4px;
-}
-.formulario-agregar button {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  background-color: #28a745; /* Verde para añadir */
-  color: white;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-.formulario-agregar button:hover {
-  background-color: #218838;
-}
-
-/* --- ESTILOS DE BOTONES DE ACCIÓN MEJORADOS --- */
-.btn-action {
-  padding: 8px 12px; /* Más padding para mejorar el aspecto */
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-  margin: 2px; /* Margen más ajustado entre botones */
-  transition:
-    background-color 0.3s,
-    transform 0.1s;
-  white-space: nowrap; /* Evita que el texto se rompa en varias líneas */
-}
-
-/* Hover effect */
-.btn-action:hover {
-  transform: translateY(-1px); /* Pequeño efecto 3D */
-}
-
-/* Colores para el toggle de disponibilidad */
-.btn-action.start {
-  /* Para marcar como OCUPADO */
-  background-color: #e6b700; /* Un amarillo/naranja más suave */
-  color: white;
-}
-.btn-action.complete {
-  /* Para marcar como DISPONIBLE */
-  background-color: #42b983; /* Verde Vue */
-  color: white;
-}
-.btn-action.delete {
-  /* Para Eliminar */
-  background-color: #e74c3c; /* Rojo */
-  color: white;
-}
+/* Nada más aquí: todo lo demás lo hereda de main.css */
 </style>
